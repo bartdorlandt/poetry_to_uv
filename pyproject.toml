@@ -1,0 +1,9 @@
+[project]
+name = "poetry-to-uv"
+version = "0.1.0"
+description = "Poetry to uv tool. To migrate from a poetry managed repo to uv."
+authors = [{ "name" = "Bart", "email" = "bart@bamweb.nl" }]
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = ["toml>=0.10.2"]
