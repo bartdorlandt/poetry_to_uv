@@ -14,6 +14,7 @@ You'll need to make some manual changes, probably around the following:
 * tool sections that use the multiline syntax in the exclude commands (ruff, mypy, black, ...)
 * Other multiline parts
 * if you had optional dev groups, the dev group libraries will be used, the optional flag is removed
+* Comments are lost
 
 # Contribute
 Feel free to contribute to the code.
