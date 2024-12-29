@@ -1,0 +1,8 @@
+version: "3"
+
+tasks:
+  default: task -a --sort none
+  test:
+    desc: "Run tests"
+    cmds:
+      - uv run pytest -v
