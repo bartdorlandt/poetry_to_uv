@@ -79,6 +79,8 @@ def dev_dependencies(uv_toml: dict) -> None:
     uv_deps = parse_packages(deps, uv_deps)
     uv_toml["dependency-groups"] = {"dev": uv_deps}
     del uv_toml["project"]["group"]["dev"]
+    if not uv_toml["project"]["group"]:
+        del uv_toml["project"]["group"]
 
 
 def parse_packages(deps, uv_deps) -> list[str]:

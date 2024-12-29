@@ -42,3 +42,25 @@ def test_dependencies():
     expected = {"project": {"dependencies": ["pytest", "pytest-cov", "jira>=3.8.0"]}}
     poetry_to_uv.dependencies(in_dict)
     assert in_dict == expected
+
+
+def test_dev_dependencies():
+    in_dict = {
+        "project": {
+            "group": {
+                "dev": {
+                    "dependencies": {
+                        "pytest": "*",
+                        "pytest-cov": "*",
+                        "jira": "^3.8.0",
+                    }
+                }
+            }
+        }
+    }
+    expected = {
+        "project": {},
+        "dependency-groups": {"dev": ["pytest", "pytest-cov", "jira>=3.8.0"]},
+    }
+    poetry_to_uv.dev_dependencies(in_dict)
+    assert in_dict == expected
