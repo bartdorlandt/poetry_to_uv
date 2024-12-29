@@ -6,4 +6,7 @@ authors = [{ "name" = "Bart", "email" = "bart@bamweb.nl" }]
 readme = "README.md"
 requires-python = ">=3.12"
 
-dependencies = ["toml>=0.10.2"]
+dependencies = [
+    "pytest>=8.3.4",
+    "toml>=0.10.2",
+]

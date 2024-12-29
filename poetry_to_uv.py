@@ -32,21 +32,23 @@ def version_conversion(version: str) -> str:
 
 
 def authors(uv_toml: dict):
-    # deal with authors
-    # May need to improve this part
-    # if authors := uv_toml["project"].get("authors"):
-    #     if isinstance(authors, list) and len(authors) == 1:
-    #         if isinstance(authors[0], str):
-    #             name, email = authors[0].split("<")
-    #             name = name.strip()
-    #             email = email.strip(">")
-    #             uv_toml["project"]["authors"] = [
-    #                 {"name": name, "email": email},
-    #                 {"name": "test", "email": "test@email.com"},
-    #             ]
-    uv_toml["project"]["authors"] = [
-        '{"name": "example", "email": "example@email.com"}'
-    ]
+    user_email = re.compile(r"^([\w ]+) <([\w@.]+)>$")
+
+    if authors := uv_toml["project"].get("authors"):
+        if isinstance(authors, list) and len(authors) == 1:
+            user_email.match(authors[0])
+            try:
+                name, email = user_email.match(authors[0]).groups()
+            except AttributeError:
+                name, email = ("example", "example@gmail.com")
+                uv_toml["project"]["authors_to_delete"] = authors
+            uv_toml["project"]["authors"] = (
+                f"[{{'name' = '{name}', 'email' = '{email}'}}]"
+            )
+    else:
+        uv_toml["project"]["authors"] = [
+            {"name": "example", "email": "example@email.com"}
+        ]
 
 
 def python_version(uv_toml: dict):
@@ -57,34 +59,35 @@ def python_version(uv_toml: dict):
     del uv_toml["project"]["dependencies"]
 
 
-def dev_dependencies(uv_toml: dict):
+def dev_dependencies(uv_toml: dict) -> None:
     # dev dependencies
-    if (
+    if not (
         deps := uv_toml["project"]
         .get("group", {})
         .get("dev", {})
         .get("dependencies", {})
     ):
-        if uv_toml["project"].get("group", {}).get("dev", {}).get("optional", ""):
-            print("The Dev optional flag is ignored. You'll have to take care of this!")
+        return
+    if uv_toml["project"].get("group", {}).get("dev", {}).get("optional", ""):
+        print("The Dev optional flag is ignored. You'll have to take care of this!")
 
-        uv_deps = []
+    uv_deps = []
 
-        for name, version in deps.items():
-            extra = ""
+    for name, version in deps.items():
+        extra = ""
 
-            if isinstance(version, dict):
-                # deal with extras
-                if e := version.get("extras"):
-                    v = version["version"]
-                    for i in e:
-                        extra = f"[{i}]"
-                        uv_deps.append(f"{name}{extra}{version_conversion(v)}")
-                    continue
+        if isinstance(version, dict):
+            # deal with extras
+            if e := version.get("extras"):
+                v = version["version"]
+                for i in e:
+                    extra = f"[{i}]"
+                    uv_deps.append(f"{name}{extra}{version_conversion(v)}")
+                continue
 
-            uv_deps.append(f"{name}{extra}{version_conversion(version)}")
-        uv_toml["dependency-groups"] = {"dev": uv_deps}
-        del uv_toml["project"]["group"]["dev"]
+        uv_deps.append(f"{name}{extra}{version_conversion(version)}")
+    uv_toml["dependency-groups"] = {"dev": uv_deps}
+    del uv_toml["project"]["group"]["dev"]
 
 
 def tool(uv_toml: dict, pyproject_data: dict):
@@ -96,15 +99,6 @@ def tool(uv_toml: dict, pyproject_data: dict):
 
 
 def main():
-    # test
-    # c = Path("pyproject.toml")
-    # with c.open("r") as f:
-    #     current = toml.load(f)
-    # print()
-    ###
-    uv_toml = {"project": {}, "tool": {}}
-    # Parse pyproject.toml
-
     args = argparser()
     project_file = Path(args.filename)
     dry_run = args.n
@@ -121,7 +115,7 @@ def main():
     with project_file.open("r") as f:
         pyproject_data = toml.load(f)
 
-    uv_toml["project"] = pyproject_data["tool"]["poetry"]
+    uv_toml = {"tool": {}, "project": pyproject_data["tool"]["poetry"]}
     authors(uv_toml)
     python_version(uv_toml)
     dev_dependencies(uv_toml)
@@ -136,7 +130,8 @@ def main():
         toml.dump(uv_toml, f)
 
     print("Actions required:")
-    print("* Change the authors, it requires a list of dicts with name and email.")
+    print("* Change the authors. Remove the double quotes on both sides")
+    print("\t e.g. authors = [{ 'name' = 'First Last', 'email' = 'first@domain.nl' }]")
     print("\t* https://packaging.python.org/en/latest/guides/writing-pyproject-toml/")
     print("* if any '\\n' or '\\t' are found, make it pretty yourself.")
 
