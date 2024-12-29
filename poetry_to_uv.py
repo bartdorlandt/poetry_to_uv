@@ -46,17 +46,20 @@ def authors(uv_toml: dict):
                 f"[{{'name' = '{name}', 'email' = '{email}'}}]"
             )
     else:
-        uv_toml["project"]["authors"] = [
-            {"name": "example", "email": "example@email.com"}
-        ]
+        uv_toml["project"]["authors"] = (
+            "[{{'name' = 'example', 'email' = 'example@email.com'}}]"
+        )
 
 
 def python_version(uv_toml: dict):
     # check specific python version
+    if not uv_toml["project"]["dependencies"].get("python"):
+        print("No python version found")
+        return
     uv_toml["project"]["requires-python"] = version_conversion(
         uv_toml["project"]["dependencies"]["python"]
     )
-    del uv_toml["project"]["dependencies"]
+    del uv_toml["project"]["dependencies"]["python"]
 
 
 def dev_dependencies(uv_toml: dict) -> None:
@@ -73,6 +76,12 @@ def dev_dependencies(uv_toml: dict) -> None:
 
     uv_deps = []
 
+    uv_deps = parse_packages(deps, uv_deps)
+    uv_toml["dependency-groups"] = {"dev": uv_deps}
+    del uv_toml["project"]["group"]["dev"]
+
+
+def parse_packages(deps, uv_deps) -> list[str]:
     for name, version in deps.items():
         extra = ""
 
@@ -86,8 +95,17 @@ def dev_dependencies(uv_toml: dict) -> None:
                 continue
 
         uv_deps.append(f"{name}{extra}{version_conversion(version)}")
-    uv_toml["dependency-groups"] = {"dev": uv_deps}
-    del uv_toml["project"]["group"]["dev"]
+    return uv_deps
+
+
+def dependencies(uv_toml: dict) -> None:
+    # dev dependencies
+    if not (deps := uv_toml["project"].get("dependencies", {})):
+        return
+    uv_deps = []
+
+    uv_deps = parse_packages(deps, uv_deps)
+    uv_toml["project"]["dependencies"] = uv_deps
 
 
 def tool(uv_toml: dict, pyproject_data: dict):
@@ -119,6 +137,7 @@ def main():
     authors(uv_toml)
     python_version(uv_toml)
     dev_dependencies(uv_toml)
+    dependencies(uv_toml)
     tool(uv_toml, pyproject_data)
     if "group" in uv_toml["project"]:
         del uv_toml["project"]["group"]
