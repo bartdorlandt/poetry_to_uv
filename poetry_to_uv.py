@@ -16,7 +16,9 @@ def argparser() -> argparse.Namespace:
     )
     parser.add_argument("filename")
     parser.add_argument(
-        "-n", action="store_true", help="Do not backup and create pyproject.toml"
+        "-n",
+        action="store_true",
+        help="Do not modify pyproject.toml, instead create pyproject_temp_uv.toml",
     )
     return parser.parse_args()
 
@@ -181,8 +183,9 @@ def main():
     if uv_toml["project"].get("authors_manual_action_and_delete"):
         print("* Authors manual action required. Modify it to match the example below:")
         print('\t e.g. authors = [{ name = "First Last", email = "first@domain.nl" }]')
+        print()
     print(
-        "\n\t* Information on pyproject.toml: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"
+        "* Information on pyproject.toml: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"
     )
     print("* If any '\\n' or '\\t' are found, make it pretty yourself.")
     print("* Comments are lost in the conversion. Add them back if needed.")
