@@ -42,12 +42,13 @@ def authors(uv_toml: dict):
             except AttributeError:
                 name, email = ("example", "example@gmail.com")
                 uv_toml["project"]["authors_to_delete"] = authors
-            uv_toml["project"]["authors"] = (
-                f"[{{'name' = '{name}', 'email' = '{email}'}}]"
-            )
+            uv_toml["project"]["authors"] = f'[{{name = "{name}", email = "{email}"}}]'
+        else:
+            uv_toml["project"]["authors_manual_action_and_delete"] = authors
+            del uv_toml["project"]["authors"]
     else:
         uv_toml["project"]["authors"] = (
-            "[{{'name' = 'example', 'email' = 'example@email.com'}}]"
+            '[{{name = "example", email = "example@email.com"}}]'
         )
 
 
@@ -118,6 +119,16 @@ def tool(uv_toml: dict, pyproject_data: dict):
         uv_toml["tool"][tool] = data
 
 
+def modify_authors_line(dumped_txt: str) -> str:
+    new = re.sub(
+        r'authors = "\[(.*)\]"',
+        r"authors = [\1]",
+        dumped_txt,
+        flags=re.MULTILINE,
+    )
+    return new.replace("\\", "")
+
+
 def main():
     args = argparser()
     project_file = Path(args.filename)
@@ -128,7 +139,7 @@ def main():
         output_file = Path(project_dir / "pyproject_temp_uv.toml")
         print(f"Dry_run enabled. Output file: {output_file}")
     else:
-        print(f"Replacing {project_file}.\nBackup file : {backup_file}")
+        print(f"Replacing {project_file}\nBackup file : {backup_file}")
         output_file = project_file
     print()
 
@@ -147,14 +158,20 @@ def main():
     if not dry_run:
         project_file.rename(backup_file)
 
+    back_to_string = toml.dumps(uv_toml)
+    result = modify_authors_line(back_to_string)
     with output_file.open("w") as f:
-        toml.dump(uv_toml, f)
+        f.write(result)
 
     print("Actions required:")
-    print("* Change the authors. Remove the double quotes on both sides")
-    print("\t e.g. authors = [{ 'name' = 'First Last', 'email' = 'first@domain.nl' }]")
-    print("\t* https://packaging.python.org/en/latest/guides/writing-pyproject-toml/")
-    print("* if any '\\n' or '\\t' are found, make it pretty yourself.")
+    if uv_toml["project"].get("authors_manual_action_and_delete"):
+        print("* Authors manual action required. Modify it to match the example below:")
+        print('\t e.g. authors = [{ name = "First Last", email = "first@domain.nl" }]')
+    print(
+        "\n\t* Information on pyproject.toml: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"
+    )
+    print("* If any '\\n' or '\\t' are found, make it pretty yourself.")
+    print("* Comments are lost in the conversion. Add them back if needed.")
 
 
 if __name__ == "__main__":
