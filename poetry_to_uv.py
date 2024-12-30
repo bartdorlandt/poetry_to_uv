@@ -96,7 +96,7 @@ def dev_dependencies(uv_toml: dict) -> None:
     uv_deps = parse_packages(deps, uv_deps)
     uv_toml["dependency-groups"] = {"dev": uv_deps}
     del uv_toml["project"]["group"]["dev"]
-    if not uv_toml["project"]["group"]:
+    if "group" in uv_toml["project"] and not uv_toml["project"]["group"]:
         del uv_toml["project"]["group"]
 
 
@@ -127,7 +127,7 @@ def dependencies(uv_toml: dict) -> None:
     uv_toml["project"]["dependencies"] = uv_deps
 
 
-def tool(uv_toml: dict, pyproject_data: dict):
+def tools(uv_toml: dict, pyproject_data: dict):
     # deal with other tools
     for tool, data in pyproject_data["tool"].items():
         if tool == "poetry":
@@ -157,27 +157,22 @@ def main():
     else:
         print(f"Replacing {project_file}\nBackup file : {backup_file}")
         output_file = project_file
-    print()
 
-    with project_file.open("r") as f:
-        pyproject_data = toml.load(f)
-
+    pyproject_data = toml.load(project_file)
     uv_toml = {"tool": {}, "project": pyproject_data["tool"]["poetry"]}
+
     authors(uv_toml)
     python_version(uv_toml)
     dev_dependencies(uv_toml)
     dependencies(uv_toml)
-    tool(uv_toml, pyproject_data)
-    if "group" in uv_toml["project"]:
-        del uv_toml["project"]["group"]
+    tools(uv_toml, pyproject_data)
 
     if not dry_run:
         project_file.rename(backup_file)
 
-    back_to_string = toml.dumps(uv_toml)
-    result = modify_authors_line(back_to_string)
-    with output_file.open("w") as f:
-        f.write(result)
+    toml_string = toml.dumps(uv_toml)
+    result = modify_authors_line(toml_string)
+    output_file.write_text(result)
 
     print("Actions required:")
     if uv_toml["project"].get("authors_manual_action_and_delete"):
@@ -187,7 +182,7 @@ def main():
     print(
         "* Information on pyproject.toml: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"
     )
-    print("* If any '\\n' or '\\t' are found, make it pretty yourself.")
+    print(r"* If any '\n' or '\t' are found, make it pretty yourself.")
     print("* Comments are lost in the conversion. Add them back if needed.")
 
 
