@@ -33,22 +33,36 @@ def version_conversion(version: str) -> str:
 
 def authors(uv_toml: dict):
     user_email = re.compile(r"^([\w ]+) <([\w@.]+)>$")
+    only_email = re.compile(r"^<([\w@.]+)>$")
+    only_user = re.compile(r"^([\w ]+)$")
 
     if authors := uv_toml["project"].get("authors"):
-        if isinstance(authors, list) and len(authors) == 1:
-            user_email.match(authors[0])
-            try:
-                name, email = user_email.match(authors[0]).groups()
-            except AttributeError:
-                name, email = ("example", "example@gmail.com")
-                uv_toml["project"]["authors_to_delete"] = authors
-            uv_toml["project"]["authors"] = f'[{{name = "{name}", email = "{email}"}}]'
-        else:
-            uv_toml["project"]["authors_manual_action_and_delete"] = authors
+        if isinstance(authors, list):
+            new_authors = []
+            for author in authors:
+                if found := user_email.match(author):
+                    name, email = found.groups()
+                    new_authors.append(f'{{name = "{name}", email = "{email}"}}')
+                elif found := only_email.match(author):
+                    email = found[1]
+                    new_authors.append(f'{{email = "{email}"}}')
+                elif found := only_user.match(author):
+                    name = found[1]
+                    new_authors.append(f'{{name = "{name}"}}')
+                else:
+                    uv_toml["project"]["authors_manual_action_and_delete"] = uv_toml[
+                        "project"
+                    ].get("authors_manual_action_and_delete", [])
+                    uv_toml["project"]["authors_manual_action_and_delete"].append(
+                        author
+                    )
+                    continue
+
             del uv_toml["project"]["authors"]
+            uv_toml["project"]["authors"] = f'[{", ".join(new_authors)}]'
     else:
         uv_toml["project"]["authors"] = (
-            '[{{name = "example", email = "example@email.com"}}]'
+            '[{name = "example", email = "example@email.com"}]'
         )
 
 
