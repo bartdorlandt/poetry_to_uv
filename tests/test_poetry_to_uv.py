@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 import poetry_to_uv
@@ -72,17 +74,15 @@ def test_optional_dependencies():
             "dependencies": {
                 "pytest": "*",
                 "pytest-cov": "*",
-                "jira": {"version": "^3.8.0", "optional": True}
+                "jira": {"version": "^3.8.0", "optional": True},
             },
-            "extras": {
-                "JIRA": ["jira"]
-            }
+            "extras": {"JIRA": ["jira"]},
         }
     }
-    expected= {
+    expected = {
         "project": {
             "dependencies": ["pytest", "pytest-cov"],
-            "optional-dependencies": {"JIRA": ["jira>=3.8.0"]}
+            "optional-dependencies": {"JIRA": ["jira>=3.8.0"]},
         }
     }
     poetry_to_uv.dependencies(in_dict)
@@ -175,15 +175,33 @@ dependencies = [
 
 
 def test_project_license():
+    in_dict = {"project": {"license": "MIT"}}
+    expected = {"project": {"license": {"text": "MIT"}}}
+    poetry_to_uv.project_license(in_dict, Path())
+    assert in_dict == expected
+
+
+def test_project_license_file(tmp_path):
+    license_name = "license_file_name"
+    in_dict = {"project": {"license": license_name}}
+    tmp_path.joinpath(license_name).touch()
+    expected = {"project": {"license": {"file": license_name}}}
+    poetry_to_uv.project_license(in_dict, tmp_path)
+    assert in_dict == expected
+
+
+def test_build_system():
     in_dict = {
-        "project": {
-            "license": "MIT"
+        "build-system": {
+            "requires": ["poetry-core>=1.0.0"],
+            "build-backend": "poetry.core.masonry.api",
         }
     }
-    expected= {
-        "project": {
-            "license": {"text": "MIT"}
+    expected = {
+        "build-system": {
+            "requires": ["poetry-core>=1.0.0"],
+            "build-backend": "poetry.core.masonry.api",
         }
     }
-    poetry_to_uv.project_license(in_dict)
+    poetry_to_uv.blocks_as_is(in_dict, in_dict)
     assert in_dict == expected

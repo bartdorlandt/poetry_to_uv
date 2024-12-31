@@ -100,7 +100,7 @@ def dev_dependencies(uv_toml: dict) -> None:
         del uv_toml["project"]["group"]
 
 
-def parse_packages(deps, uv_deps, uv_deps_optional = dict()):
+def parse_packages(deps, uv_deps, uv_deps_optional=dict()):
     for name, version in deps.items():
         extra = ""
 
@@ -130,9 +130,10 @@ def dependencies(uv_toml: dict) -> None:
     uv_toml["project"]["dependencies"] = uv_deps
 
     if uv_deps_optional:
-        optional_deps = {}
-        for extra, deps in uv_toml["project"].pop("extras", {}).items():
-            optional_deps[extra] = [f"{x}{uv_deps_optional[x]}" for x in deps]
+        optional_deps = {
+            extra: [f"{x}{uv_deps_optional[x]}" for x in deps]
+            for extra, deps in uv_toml["project"].pop("extras", {}).items()
+        }
         uv_toml["project"]["optional-dependencies"] = optional_deps
 
 
@@ -142,6 +143,10 @@ def tools(uv_toml: dict, pyproject_data: dict):
         if tool == "poetry":
             continue
         uv_toml["tool"][tool] = data
+
+
+def blocks_as_is(uv_toml: dict, pyproject_data: dict):
+    uv_toml["build-system"] = pyproject_data["build-system"]
 
 
 def modify_authors_line(dumped_txt: str) -> str:
@@ -154,10 +159,12 @@ def modify_authors_line(dumped_txt: str) -> str:
     return new.replace("\\", "")
 
 
-def project_license(uv_toml: dict):
-    if l := uv_toml["project"].get("license"):
-        if isinstance(l, str):
-            uv_toml["project"]["license"] = {"text": l}
+def project_license(uv_toml: dict, project_dir: Path):
+    if license := uv_toml["project"].get("license"):
+        if project_dir.joinpath(license).exists():
+            uv_toml["project"]["license"] = {"file": license}
+        else:
+            uv_toml["project"]["license"] = {"text": license}
 
 
 def main():
@@ -177,10 +184,11 @@ def main():
     uv_toml = {"tool": {}, "project": pyproject_data["tool"]["poetry"]}
 
     authors(uv_toml)
-    project_license(uv_toml)
+    project_license(uv_toml, project_dir)
     python_version(uv_toml)
     dev_dependencies(uv_toml)
     dependencies(uv_toml)
+    blocks_as_is(uv_toml, pyproject_data)
     tools(uv_toml, pyproject_data)
 
     if not dry_run:
