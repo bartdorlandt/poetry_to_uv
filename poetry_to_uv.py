@@ -154,6 +154,12 @@ def modify_authors_line(dumped_txt: str) -> str:
     return new.replace("\\", "")
 
 
+def project_license(uv_toml: dict):
+    if l := uv_toml["project"].get("license"):
+        if isinstance(l, str):
+            uv_toml["project"]["license"] = {"text": l}
+
+
 def main():
     args = argparser()
     project_file = Path(args.filename)
@@ -171,6 +177,7 @@ def main():
     uv_toml = {"tool": {}, "project": pyproject_data["tool"]["poetry"]}
 
     authors(uv_toml)
+    project_license(uv_toml)
     python_version(uv_toml)
     dev_dependencies(uv_toml)
     dependencies(uv_toml)

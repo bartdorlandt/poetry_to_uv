@@ -172,3 +172,18 @@ dependencies = [
 ]
 """
     assert poetry_to_uv.modify_authors_line(in_txt) == out_txt
+
+
+def test_project_license():
+    in_dict = {
+        "project": {
+            "license": "MIT"
+        }
+    }
+    expected= {
+        "project": {
+            "license": {"text": "MIT"}
+        }
+    }
+    poetry_to_uv.project_license(in_dict)
+    assert in_dict == expected
