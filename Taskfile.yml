@@ -2,7 +2,7 @@ version: "3"
 
 tasks:
   default: task -a --sort none
-  pytest:
+  test:
     desc: "Run tests"
     cmds:
       - uv run pytest -v
