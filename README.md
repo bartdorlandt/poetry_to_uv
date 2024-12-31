@@ -16,6 +16,11 @@ You'll need to make some manual changes, probably around the following:
 * if you had optional dev groups, the dev group libraries will be used, the optional flag is removed
 * Comments are lost
 
+# Using as a tool
+The script can be run as a tool using [`uvx`](https://docs.astral.sh/uv/guides/tools/)
+
+    uvx --from git+https://github.com/bartdorlandt/poetry_to_uv poetry-to-uv --help
+
 # Contribute
 Feel free to contribute to the code.
 
