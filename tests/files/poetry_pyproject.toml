@@ -3,6 +3,7 @@ name = "name of the project"
 version = "0.1.0"
 description = "A description"
 authors = ["another <email@domain.nl>", "<some@email.nl>", "user"]
+maintainers = ["another <email@domain.nl>", "<some@email.nl>", "user"]
 license = "LICENSE"
 readme = "README.md"
 

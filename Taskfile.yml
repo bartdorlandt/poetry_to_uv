@@ -2,7 +2,14 @@ version: "3"
 
 tasks:
   default: task -a --sort none
-  test:
+  pytest:
     desc: "Run tests"
     cmds:
       - uv run pytest -v
+
+  generate_output:
+    desc: "Generate test output"
+    aliases: [gen]
+    cmds:
+      - uv run python poetry_to_uv.py tests/files/poetry_pyproject.toml -n
+      - cat tests/files/pyproject_temp_uv.toml

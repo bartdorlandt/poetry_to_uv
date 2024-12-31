@@ -33,39 +33,38 @@ def version_conversion(version: str) -> str:
         raise ValueError
 
 
-def authors(uv_toml: dict):
+def authors_maintainers(uv_toml: dict):
     user_email = re.compile(r"^([\w ]+) <([\w@.]+)>$")
     only_email = re.compile(r"^<([\w@.]+)>$")
     only_user = re.compile(r"^([\w ]+)$")
 
-    if authors := uv_toml["project"].get("authors"):
-        if isinstance(authors, list):
-            new_authors = []
-            for author in authors:
-                if found := user_email.match(author):
-                    name, email = found.groups()
-                    new_authors.append(f'{{name = "{name}", email = "{email}"}}')
-                elif found := only_email.match(author):
-                    email = found[1]
-                    new_authors.append(f'{{email = "{email}"}}')
-                elif found := only_user.match(author):
-                    name = found[1]
-                    new_authors.append(f'{{name = "{name}"}}')
-                else:
-                    uv_toml["project"]["authors_manual_action_and_delete"] = uv_toml[
-                        "project"
-                    ].get("authors_manual_action_and_delete", [])
-                    uv_toml["project"]["authors_manual_action_and_delete"].append(
-                        author
-                    )
-                    continue
+    for authors_key in ("authors", "maintainers"):
+        if authors := uv_toml["project"].get(authors_key):
+            if isinstance(authors, list):
+                new_authors = []
+                for author in authors:
+                    if found := user_email.match(author):
+                        name, email = found.groups()
+                        new_authors.append(f'{{name = "{name}", email = "{email}"}}')
+                    elif found := only_email.match(author):
+                        email = found[1]
+                        new_authors.append(f'{{email = "{email}"}}')
+                    elif found := only_user.match(author):
+                        name = found[1]
+                        new_authors.append(f'{{name = "{name}"}}')
+                    else:
+                        uv_toml["project"]["authors_manual_action_and_delete"] = (
+                            uv_toml[
+                                "project"
+                            ].get("authors_manual_action_and_delete", [])
+                        )
+                        uv_toml["project"]["authors_manual_action_and_delete"].append(
+                            author
+                        )
+                        continue
 
-            del uv_toml["project"]["authors"]
-            uv_toml["project"]["authors"] = f'[{", ".join(new_authors)}]'
-    else:
-        uv_toml["project"]["authors"] = (
-            '[{name = "example", email = "example@email.com"}]'
-        )
+                del uv_toml["project"][authors_key]
+                uv_toml["project"][authors_key] = f'[{", ".join(new_authors)}]'
 
 
 def python_version(uv_toml: dict):
@@ -80,7 +79,6 @@ def python_version(uv_toml: dict):
 
 
 def dev_dependencies(uv_toml: dict) -> None:
-    # dev dependencies
     if not (
         deps := uv_toml["project"]
         .get("group", {})
@@ -100,7 +98,9 @@ def dev_dependencies(uv_toml: dict) -> None:
         del uv_toml["project"]["group"]
 
 
-def parse_packages(deps, uv_deps, uv_deps_optional=dict()):
+def parse_packages(deps, uv_deps, uv_deps_optional=None):
+    if uv_deps_optional is None:
+        uv_deps_optional = {}
     for name, version in deps.items():
         extra = ""
 
@@ -120,7 +120,6 @@ def parse_packages(deps, uv_deps, uv_deps_optional=dict()):
 
 
 def dependencies(uv_toml: dict) -> None:
-    # dev dependencies
     if not (deps := uv_toml["project"].get("dependencies", {})):
         return
     uv_deps = []
@@ -149,14 +148,19 @@ def blocks_as_is(uv_toml: dict, pyproject_data: dict):
     uv_toml["build-system"] = pyproject_data["build-system"]
 
 
-def modify_authors_line(dumped_txt: str) -> str:
-    new = re.sub(
-        r'authors = "\[(.*)\]"',
-        r"authors = [\1]",
+def modify_authors_maintainers_line(dumped_txt: str, key: str) -> str:
+    subbed = re.sub(
+        rf'{key} = "\[(.*)\]"',
+        rf"{key} = [\1]",
         dumped_txt,
         flags=re.MULTILINE,
     )
-    return new.replace("\\", "")
+    replaced = []
+    for line in subbed.split("\n"):
+        if line.startswith(f"{key} = "):
+            line = line.replace("\\", "")
+        replaced.append(line)
+    return "\n".join(replaced)
 
 
 def project_license(uv_toml: dict, project_dir: Path):
@@ -187,7 +191,7 @@ def main():
 
     uv_toml = {"tool": {}, "project": pyproject_data["tool"]["poetry"]}
 
-    authors(uv_toml)
+    authors_maintainers(uv_toml)
     project_license(uv_toml, project_dir)
     python_version(uv_toml)
     dev_dependencies(uv_toml)
@@ -199,7 +203,8 @@ def main():
         project_file.rename(backup_file)
 
     toml_string = toml.dumps(uv_toml)
-    result = modify_authors_line(toml_string)
+    result = modify_authors_maintainers_line(toml_string, "authors")
+    result = modify_authors_maintainers_line(result, "maintainers")
     output_file.write_text(result)
 
     print("Actions required:")

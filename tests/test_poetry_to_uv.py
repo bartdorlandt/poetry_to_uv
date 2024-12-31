@@ -13,31 +13,24 @@ def read_poetry_toml_as_text():
 
 
 @pytest.fixture
-def read_poetry_toml_as_objet(read_poetry_toml_as_text):
+def read_poetry_toml_as_object(read_poetry_toml_as_text):
     return toml.loads(read_poetry_toml_as_text)
 
 
 @pytest.mark.parametrize(
-    "name, email",
+    "key, name, email",
     [
-        (["firstname lastname", "name@domain.nl"]),
-        (["another one", "just@checking.com"]),
+        (["authors", "firstname lastname", "name@domain.nl"]),
+        (["authors", "another one", "just@checking.com"]),
+        (["maintainers", "firstname lastname", "name@domain.nl"]),
+        (["maintainers", "another one", "just@checking.com"]),
     ],
 )
-def test_authors(name, email):
+def test_authors_maintainers(key, name, email):
     authors = [f"{name} <{email}>"]
-    in_dict = {"project": {"authors": authors}}
-    expected = {"project": {"authors": f'[{{name = "{name}", email = "{email}"}}]'}}
-    poetry_to_uv.authors(in_dict)
-    assert in_dict == expected
-
-
-def test_authors_empty():
-    in_dict = {"project": {}}
-    expected = {
-        "project": {"authors": '[{name = "example", email = "example@email.com"}]'}
-    }
-    poetry_to_uv.authors(in_dict)
+    in_dict = {"project": {key: authors}}
+    expected = {"project": {key: f'[{{name = "{name}", email = "{email}"}}]'}}
+    poetry_to_uv.authors_maintainers(in_dict)
     assert in_dict == expected
 
 
@@ -61,7 +54,7 @@ def test_authors_empty():
 def test_multiple_authors(authors, author_string):
     in_dict = {"project": {"authors": authors}}
     expected = {"project": {"authors": author_string}}
-    poetry_to_uv.authors(in_dict)
+    poetry_to_uv.authors_maintainers(in_dict)
     assert in_dict == expected
 
 
@@ -148,22 +141,19 @@ dependencies = [
     "jira>=3.8.0",
 ]
 """
-    assert poetry_to_uv.modify_authors_line(in_txt) == out_txt
+    result = poetry_to_uv.modify_authors_maintainers_line(in_txt, "authors")
+    assert result == out_txt
+    assert (
+        poetry_to_uv.modify_authors_maintainers_line(result, "maintainers") == out_txt
+    )
 
 
-@pytest.mark.parametrize(
-    "author_string",
-    [
-        '[{ name = "First Last", email = "first@domain.nl" }, { name = "Name", email = "name@domain.nl" }]',
-        '[{ email = "first@domain.nl" }, { name = "Name"}]',
-    ],
-)
-def test_modify_multiple_authors_line(author_string):
-    in_txt = f"""[project]
+def test_modify_maintainers_line():
+    in_txt = """[project]
 name = "someproject"
 version = "0.1.0"
 description = "A project"
-authors = "{author_string}"
+maintainers = "[{ name = \"First Last\", email = \"first@domain.nl\" }]"
 license = "LICENSE"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -171,11 +161,11 @@ dependencies = [
     "jira>=3.8.0",
 ]
 """
-    out_txt = f"""[project]
+    out_txt = """[project]
 name = "someproject"
 version = "0.1.0"
 description = "A project"
-authors = {author_string}
+maintainers = [{ name = "First Last", email = "first@domain.nl" }]
 license = "LICENSE"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -183,7 +173,62 @@ dependencies = [
     "jira>=3.8.0",
 ]
 """
-    assert poetry_to_uv.modify_authors_line(in_txt) == out_txt
+    assert (
+        poetry_to_uv.modify_authors_maintainers_line(in_txt, "maintainers") == out_txt
+    )
+
+
+def test_modify_authors_and_maintainers_line():
+    in_txt = """[project]
+name = "someproject"
+version = "0.1.0"
+description = "A project"
+authors = "[{ name = \"First Last\", email = \"first@domain.nl\" }]"
+maintainers = "[{ name = \"First Last\", email = \"first@domain.nl\" }]"
+license = "LICENSE"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "jira>=3.8.0",
+]
+"""
+    out_txt = """[project]
+name = "someproject"
+version = "0.1.0"
+description = "A project"
+authors = [{ name = "First Last", email = "first@domain.nl" }]
+maintainers = [{ name = "First Last", email = "first@domain.nl" }]
+license = "LICENSE"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "jira>=3.8.0",
+]
+"""
+    result = poetry_to_uv.modify_authors_maintainers_line(in_txt, "authors")
+    assert (
+        poetry_to_uv.modify_authors_maintainers_line(result, "maintainers") == out_txt
+    )
+
+
+def test_modify_authors_and_maintainers_line_with_multiple_ids(
+    read_poetry_toml_as_object,
+):
+    uv_toml = {"tool": {}, "project": read_poetry_toml_as_object["tool"]["poetry"]}
+    poetry_to_uv.authors_maintainers(uv_toml)
+    in_txt = toml.dumps(uv_toml)
+    result = poetry_to_uv.modify_authors_maintainers_line(in_txt, "authors")
+    result = poetry_to_uv.modify_authors_maintainers_line(result, "maintainers")
+    obj = toml.loads(result)
+    assert_accounts = [
+        {"name": "another", "email": "email@domain.nl"},
+        {"email": "some@email.nl"},
+        {"name": "user"},
+    ]
+    # sourcery skip: no-loop-in-tests
+    for account in assert_accounts:
+        assert account in obj["project"]["authors"]
+        assert account in obj["project"]["maintainers"]
 
 
 def test_project_license():
@@ -202,9 +247,9 @@ def test_project_license_file(tmp_path):
     assert in_dict == expected
 
 
-def test_build_system(read_poetry_toml_as_objet):
+def test_build_system(read_poetry_toml_as_object):
     in_dict = {
-        "build-system": read_poetry_toml_as_objet["build-system"],
+        "build-system": read_poetry_toml_as_object["build-system"],
     }
     expected = {
         "build-system": {
