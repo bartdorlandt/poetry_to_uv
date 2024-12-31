@@ -3,7 +3,7 @@ import argparse
 import re
 from pathlib import Path
 
-import toml
+import tomlkit as tk
 
 gt_version = re.compile(r"\^(\d.*)")
 
@@ -33,69 +33,37 @@ def version_conversion(version: str) -> str:
         raise ValueError
 
 
-def authors_maintainers(uv_toml: dict):
+def authors_maintainers(project: tk.table):
     user_email = re.compile(r"^([\w ]+) <([\w@.]+)>$")
     only_email = re.compile(r"^<([\w@.]+)>$")
     only_user = re.compile(r"^([\w ]+)$")
 
-    for authors_key in ("authors", "maintainers"):
-        if authors := uv_toml["project"].get(authors_key):
+    for key in ("authors", "maintainers"):
+        if authors := project.get(key):
             if isinstance(authors, list):
-                new_authors = []
+                new_authors = tk.array()
                 for author in authors:
                     if found := user_email.match(author):
                         name, email = found.groups()
-                        new_authors.append(f'{{name = "{name}", email = "{email}"}}')
+                        tb = tk.inline_table().add("name", name).add("email", email)
+                        new_authors.add_line(tb)
                     elif found := only_email.match(author):
                         email = found[1]
-                        new_authors.append(f'{{email = "{email}"}}')
+                        new_authors.add_line(tk.inline_table().add("email", email))
                     elif found := only_user.match(author):
                         name = found[1]
-                        new_authors.append(f'{{name = "{name}"}}')
+                        new_authors.add_line(tk.inline_table().add("name", name))
                     else:
-                        uv_toml["project"]["authors_manual_action_and_delete"] = (
-                            uv_toml[
-                                "project"
-                            ].get("authors_manual_action_and_delete", [])
-                        )
-                        uv_toml["project"]["authors_manual_action_and_delete"].append(
-                            author
-                        )
-                        continue
+                        print(f"Unknown author {key} format: {author}")
 
-                del uv_toml["project"][authors_key]
-                uv_toml["project"][authors_key] = f'[{", ".join(new_authors)}]'
+                new_authors.add_line(indent="")
+                project[key] = new_authors
 
 
-def python_version(uv_toml: dict):
+def python_version(project: tk.table, uv_toml: dict):
     # check specific python version
-    if not uv_toml["project"]["dependencies"].get("python"):
-        print("No python version found")
-        return
-    uv_toml["project"]["requires-python"] = version_conversion(
-        uv_toml["project"]["dependencies"]["python"]
-    )
-    del uv_toml["project"]["dependencies"]["python"]
-
-
-def dev_dependencies(uv_toml: dict) -> None:
-    if not (
-        deps := uv_toml["project"]
-        .get("group", {})
-        .get("dev", {})
-        .get("dependencies", {})
-    ):
-        return
-    if uv_toml["project"].get("group", {}).get("dev", {}).get("optional", ""):
-        print("The Dev optional flag is ignored. You'll have to take care of this!")
-
-    uv_deps = []
-
-    parse_packages(deps, uv_deps)
-    uv_toml["dependency-groups"] = {"dev": uv_deps}
-    del uv_toml["project"]["group"]["dev"]
-    if "group" in uv_toml["project"] and not uv_toml["project"]["group"]:
-        del uv_toml["project"]["group"]
+    if version := project.get("requires-python"):
+        project["requires-python"] = version_conversion(version)
 
 
 def parse_packages(deps, uv_deps, uv_deps_optional=None):
@@ -119,63 +87,124 @@ def parse_packages(deps, uv_deps, uv_deps_optional=None):
         uv_deps.append(f"{name}{extra}{version_conversion(version)}")
 
 
-def dependencies(uv_toml: dict) -> None:
-    if not (deps := uv_toml["project"].get("dependencies", {})):
+def dev_dependencies(new_toml: tk.TOMLDocument, uv_toml: tk.TOMLDocument) -> None:
+    if not (
+        deps := uv_toml["tool"]["poetry"]
+        .get("group", {})
+        .get("dev", {})
+        .get("dependencies", {})
+    ):
+        return
+    if uv_toml["tool"]["poetry"].get("group", {}).get("dev", {}).get("optional", ""):
+        print("The Dev optional flag is ignored. You'll have to take care of this!")
+
+    uv_deps = []
+    parse_packages(deps, uv_deps)
+    dep_groups = tk.table()
+    dep_groups.add("dev", uv_deps)
+    new_toml["dependency-groups"] = dep_groups
+
+
+def dependencies(new_toml: tk.TOMLDocument, uv_toml: dict) -> None:
+    if not (deps := uv_toml["tool"]["poetry"].get("dependencies", {})):
         return
     uv_deps = []
     uv_deps_optional = {}
 
     parse_packages(deps, uv_deps, uv_deps_optional)
-    uv_toml["project"]["dependencies"] = uv_deps
+    new_toml["project"]["dependencies"] = tk.array()
+    if uv_deps:
+        for x in uv_deps:
+            new_toml["project"]["dependencies"].add_line(x)
+        new_toml["project"]["dependencies"].add_line(indent="")
 
     if uv_deps_optional:
         optional_deps = {
             extra: [f"{x}{uv_deps_optional[x]}" for x in deps]
-            for extra, deps in uv_toml["project"].pop("extras", {}).items()
+            for extra, deps in uv_toml["tool"]["poetry"].pop("extras", {}).items()
         }
-        uv_toml["project"]["optional-dependencies"] = optional_deps
+
+        for x in optional_deps:
+            new_toml["project"]["optional-dependencies"].add_line(x)
+        new_toml["project"]["optional-dependencies"].add_line(indent="")
 
 
-def tools(uv_toml: dict, pyproject_data: dict):
+def tools(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument):
     # deal with other tools
-    for tool, data in pyproject_data["tool"].items():
-        if tool == "poetry":
-            continue
-        uv_toml["tool"][tool] = data
+    if org_toml["tool"]:
+        new_toml["tool"] = tk.table()
+        for tool, data in org_toml["tool"].items():
+            if tool == "poetry":
+                continue
+            new_toml["tool"][tool] = data
 
 
-def blocks_as_is(uv_toml: dict, pyproject_data: dict):
-    uv_toml["build-system"] = pyproject_data["build-system"]
+def blocks_as_is(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument):
+    new_toml["build-system"] = org_toml["build-system"]
 
 
-def modify_authors_maintainers_line(dumped_txt: str, key: str) -> str:
-    subbed = re.sub(
-        rf'{key} = "\[(.*)\]"',
-        rf"{key} = [\1]",
-        dumped_txt,
-        flags=re.MULTILINE,
-    )
-    replaced = []
-    for line in subbed.split("\n"):
-        if line.startswith(f"{key} = "):
-            line = line.replace("\\", "")
-        replaced.append(line)
-    return "\n".join(replaced)
+def project_base(project: tk.table, org_toml: tk.TOMLDocument):
+    project.add("name", org_toml["tool"]["poetry"]["name"])
+    project.add("version", org_toml["tool"]["poetry"]["version"])
+    if description := org_toml["tool"]["poetry"].get("description"):
+        project.add("description", description)
+    if authors := org_toml["tool"]["poetry"].get("authors"):
+        project.add("authors", authors)
+    if maintainers := org_toml["tool"]["poetry"].get("maintainers"):
+        project.add("maintainers", maintainers)
+    if license := org_toml["tool"]["poetry"].get("license"):
+        project.add("license", license)
+    if readme := org_toml["tool"]["poetry"].get("readme"):
+        project.add("readme", readme)
+    if requirespython := org_toml["tool"]["poetry"].get("requires-python"):
+        project.add("requires-python", requirespython)
+    elif (
+        requirespython := org_toml["tool"]["poetry"]
+        .get("dependencies", {})
+        .get("python")
+    ):
+        project.add("requires-python", requirespython)
+    if keywords := org_toml["tool"]["poetry"].get("keywords"):
+        project.add("keywords", keywords)
+    if classifiers := org_toml["tool"]["poetry"].get("classifiers"):
+        project.add("classifiers", classifiers)
+    if urls := org_toml["tool"]["poetry"].get("urls"):
+        project.add("urls", urls)
+
+    if scripts := org_toml["tool"]["poetry"].get("scripts"):
+        project.add(tk.nl())
+        project.add("scripts", scripts)
+
+    if dependencies := org_toml["tool"]["poetry"].get("dependencies"):
+        project.add("dependencies", dependencies)
 
 
-def project_license(uv_toml: dict, project_dir: Path):
-    if license := uv_toml["project"].get("license"):
+def project_license(project: tk.table, project_dir: Path):
+    if license := project.get("license"):
         if project_dir.joinpath(license).exists():
-            uv_toml["project"]["license"] = {"file": license}
+            project["license"] = tk.inline_table().add("file", license)
         else:
-            uv_toml["project"]["license"] = {"text": license}
+            project["license"] = tk.inline_table().add("text", license)
+
+
+def poetry_section_specific(
+    new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument, dir: Path
+):
+    project = new_toml["project"]
+    # poetry specific
+    project_base(project, org_toml)
+    project_license(project, dir)
+    python_version(project, org_toml)
+    authors_maintainers(project)
+    dev_dependencies(new_toml, org_toml)
+    dependencies(new_toml, org_toml)
 
 
 def main():
     args = argparser()
     project_file = Path(args.filename)
-    pyproject_data = toml.load(project_file)
-    if not pyproject_data.get("tool", {}).get("poetry"):
+    org_toml = tk.loads(project_file.read_text())
+    if not org_toml.get("tool", {}).get("poetry"):
         print("Poetry section not found, are you certain this is a poetry project?")
         return
 
@@ -189,34 +218,27 @@ def main():
         print(f"Replacing {project_file}\nBackup file : {backup_file}")
         output_file = project_file
 
-    uv_toml = {"tool": {}, "project": pyproject_data["tool"]["poetry"]}
+    uv_toml = {"tool": {}, "project": org_toml["tool"]["poetry"]}
 
-    authors_maintainers(uv_toml)
-    project_license(uv_toml, project_dir)
-    python_version(uv_toml)
-    dev_dependencies(uv_toml)
-    dependencies(uv_toml)
-    blocks_as_is(uv_toml, pyproject_data)
-    tools(uv_toml, pyproject_data)
+    new_toml = tk.document()
+    new_toml.add(tk.comment("This has been generated by poetry_to_uv.py."))
+    new_toml.add(tk.nl())
+    new_toml["project"] = tk.table()
+    # poetry specific
+    poetry_section_specific(new_toml, org_toml, dir=project_dir)
+
+    # other
+    blocks_as_is(new_toml, org_toml)
+    tools(new_toml, org_toml)
 
     if not dry_run:
         project_file.rename(backup_file)
 
-    toml_string = toml.dumps(uv_toml)
-    result = modify_authors_maintainers_line(toml_string, "authors")
-    result = modify_authors_maintainers_line(result, "maintainers")
-    output_file.write_text(result)
+    output_file.write_text(tk.dumps(new_toml))
 
-    print("Actions required:")
-    if uv_toml["project"].get("authors_manual_action_and_delete"):
-        print("* Authors manual action required. Modify it to match the example below:")
-        print('\t e.g. authors = [{ name = "First Last", email = "first@domain.nl" }]')
-        print()
     print(
         "* Information on pyproject.toml: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"
     )
-    print(r"* If any '\n' or '\t' are found, make it pretty yourself.")
-    print("* Comments are lost in the conversion. Add them back if needed.")
 
 
 if __name__ == "__main__":
