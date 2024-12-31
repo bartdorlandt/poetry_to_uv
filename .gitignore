@@ -11,3 +11,6 @@ wheels/
 
 # editor
 .vscode/
+
+# output test file
+tests/files/pyproject_temp_uv.toml

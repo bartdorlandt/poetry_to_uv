@@ -1,8 +1,20 @@
 from pathlib import Path
 
 import pytest
+import toml
 
 import poetry_to_uv
+
+
+@pytest.fixture
+def read_poetry_toml_as_text():
+    f = Path("tests/files/poetry_pyproject.toml")
+    return f.read_text()
+
+
+@pytest.fixture
+def read_poetry_toml_as_objet(read_poetry_toml_as_text):
+    return toml.loads(read_poetry_toml_as_text)
 
 
 @pytest.mark.parametrize(
@@ -190,12 +202,9 @@ def test_project_license_file(tmp_path):
     assert in_dict == expected
 
 
-def test_build_system():
+def test_build_system(read_poetry_toml_as_objet):
     in_dict = {
-        "build-system": {
-            "requires": ["poetry-core>=1.0.0"],
-            "build-backend": "poetry.core.masonry.api",
-        }
+        "build-system": read_poetry_toml_as_objet["build-system"],
     }
     expected = {
         "build-system": {

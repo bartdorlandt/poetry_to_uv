@@ -170,6 +170,11 @@ def project_license(uv_toml: dict, project_dir: Path):
 def main():
     args = argparser()
     project_file = Path(args.filename)
+    pyproject_data = toml.load(project_file)
+    if not pyproject_data.get("tool", {}).get("poetry"):
+        print("Poetry section not found, are you certain this is a poetry project?")
+        return
+
     dry_run = args.n
     project_dir = project_file.parent
     backup_file = project_dir / f"{project_file.name}.org"
@@ -180,7 +185,6 @@ def main():
         print(f"Replacing {project_file}\nBackup file : {backup_file}")
         output_file = project_file
 
-    pyproject_data = toml.load(project_file)
     uv_toml = {"tool": {}, "project": pyproject_data["tool"]["poetry"]}
 
     authors(uv_toml)
