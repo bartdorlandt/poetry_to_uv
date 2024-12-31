@@ -66,6 +66,29 @@ def test_dependencies():
     assert in_dict == expected
 
 
+def test_optional_dependencies():
+    in_dict = {
+        "project": {
+            "dependencies": {
+                "pytest": "*",
+                "pytest-cov": "*",
+                "jira": {"version": "^3.8.0", "optional": True}
+            },
+            "extras": {
+                "JIRA": ["jira"]
+            }
+        }
+    }
+    expected= {
+        "project": {
+            "dependencies": ["pytest", "pytest-cov"],
+            "optional-dependencies": {"JIRA": ["jira>=3.8.0"]}
+        }
+    }
+    poetry_to_uv.dependencies(in_dict)
+    assert in_dict == expected
+
+
 def test_dev_dependencies():
     in_dict = {
         "project": {
@@ -149,3 +172,18 @@ dependencies = [
 ]
 """
     assert poetry_to_uv.modify_authors_line(in_txt) == out_txt
+
+
+def test_project_license():
+    in_dict = {
+        "project": {
+            "license": "MIT"
+        }
+    }
+    expected= {
+        "project": {
+            "license": {"text": "MIT"}
+        }
+    }
+    poetry_to_uv.project_license(in_dict)
+    assert in_dict == expected
