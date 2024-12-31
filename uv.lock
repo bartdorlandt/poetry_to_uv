@@ -40,17 +40,21 @@ wheels = [
 [[package]]
 name = "poetry-to-uv"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
-    { name = "pytest" },
     { name = "toml" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "pytest", specifier = ">=8.3.4" },
-    { name = "toml", specifier = ">=0.10.2" },
+[package.dependency-groups]
+dev = [
+    { name = "pytest" },
 ]
+
+[package.metadata]
+requires-dist = [{ name = "toml", specifier = ">=0.10.2" }]
+
+[package.metadata.dependency-groups]
+dev = [{ name = "pytest", specifier = ">=8.3.4" }]
 
 [[package]]
 name = "pytest"
