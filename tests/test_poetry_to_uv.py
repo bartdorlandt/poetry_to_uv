@@ -257,3 +257,55 @@ def test_normal_and_dev_poetry_sources(pyproject_empty_base):
         },
     }
     assert pyproject_empty_base == expected
+
+
+def test_project_base(toml_obj, pyproject_empty_base):
+    org_toml = toml_obj("tests/files/poetry_pyproject.toml")
+    new_toml = pyproject_empty_base
+    poetry_to_uv.project_base(new_toml, org_toml)
+    expected = {
+        "project": {
+            "name": "name of the project",
+            "version": "0.1.0",
+            "description": "A description",
+            "authors": ["another <email@domain.nl>", "<some@email.nl>", "user"],
+            "maintainers": ["another <email@domain.nl>", "<some@email.nl>", "user"],
+            "license": "LICENSE",
+            "readme": "README.md",
+            "requires-python": ">=3.12",
+            "scripts": {"script_name": "dir.file:app"},
+            "dependencies": {
+                "python": "^3.12",
+                "pytest": "*",
+                "pytest-cov": "*",
+                "pytest-mock": "*",
+                "ruff": "*",
+                "jira": "^3.8.0",
+            },
+        }
+    }
+    assert new_toml == expected
+
+
+def test_project_base(toml_obj, pyproject_empty_base, expected_project_base):
+    org_toml = toml_obj("tests/files/poetry_pyproject.toml")
+    new_toml = pyproject_empty_base
+    poetry_to_uv.project_base(new_toml, org_toml)
+    assert new_toml == expected_project_base
+
+
+def test_project_base_require_python(
+    toml_obj, pyproject_empty_base, expected_project_base
+):
+    org_toml = toml_obj("tests/files/poetry_pyproject.toml")
+    org_toml["tool"]["poetry"]["requires-python"] = "^3.10"
+    expected_project_base["project"]["requires-python"] = ">=3.10"
+    new_toml = pyproject_empty_base
+    poetry_to_uv.project_base(new_toml, org_toml)
+    assert new_toml == expected_project_base
+
+
+def test_empty_group_dependencies(org_toml, pyproject_empty_base):
+    del org_toml["tool"]["poetry"]["group"]
+    poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
+    assert pyproject_empty_base == {"project": {}}

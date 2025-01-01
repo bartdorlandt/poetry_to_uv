@@ -6,6 +6,15 @@ authors = ["another <email@domain.nl>", "<some@email.nl>", "user"]
 maintainers = ["another <email@domain.nl>", "<some@email.nl>", "user"]
 license = "LICENSE"
 readme = "README.md"
+keywords = ["packaging", "poetry"]
+classifiers = [
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/python-poetry/poetry/issues"
+
 
 [tool.poetry.dependencies]
 python = "^3.12"

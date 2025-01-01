@@ -87,7 +87,7 @@ def parse_packages(deps: dict):
 
 
 def group_dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> None:
-    if not (groups := org_toml["tool"]["poetry"].get("group", {})):
+    if not (groups := org_toml["tool"]["poetry"].get("group")):
         return
     for group, data in groups.items():
         if (
