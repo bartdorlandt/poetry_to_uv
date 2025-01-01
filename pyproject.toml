@@ -7,7 +7,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 
 dependencies = [
-    "toml>=0.10.2",
+    "tomlkit>=0.13.2",
 ]
 
 [dependency-groups]

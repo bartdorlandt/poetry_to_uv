@@ -8,13 +8,11 @@ It has a dry-run flag, to have a temporary file to validate the output. When not
 
     uv run poetry_to_uv.py <path to file> [-n]
 
-You'll need to make some manual changes, probably around the following:
+You may need to make some manual changes. Certain layout things are best done with [Even better toml](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml) in VSCode. Just open the newly generated toml file and save. It will format the file according to the toml specification.
 
-* authors or other parts, that have dictionaries in them. They might be seen as chapters in the toml, instead of the more simple syntax.
-* tool sections that use the multiline syntax in the exclude assignments (ruff, mypy, black, ...)
-* Other multiline parts
+## Notes
+* If you were using the poetry build-system, it will be replaced by hatchling.
 * if you had optional dev groups, the dev group libraries will be used, the optional flag is removed
-* Comments are lost
 
 # Using as a tool
 The script can be run as a tool using [`uvx`](https://docs.astral.sh/uv/guides/tools/)

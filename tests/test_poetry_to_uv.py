@@ -1,20 +1,64 @@
 from pathlib import Path
 
 import pytest
-import toml
 
 import poetry_to_uv
 
 
 @pytest.fixture
-def read_poetry_toml_as_text():
-    f = Path("tests/files/poetry_pyproject.toml")
-    return f.read_text()
+def org_toml():
+    return {
+        "tool": {
+            "poetry": {
+                "dependencies": {
+                    "python": "^3.12",
+                    "pytest": "*",
+                    "pytest-cov": "*",
+                    "jira": "^3.8.0",
+                },
+                "group": {
+                    "dev": {
+                        "dependencies": {
+                            "mypy": "^1.0.1",
+                        }
+                    }
+                },
+            }
+        }
+    }
 
 
 @pytest.fixture
-def read_poetry_toml_as_object(read_poetry_toml_as_text):
-    return toml.loads(read_poetry_toml_as_text)
+def org_toml_optional():
+    return {
+        "tool": {
+            "poetry": {
+                "dependencies": {
+                    "pytest": "*",
+                    "pytest-cov": "*",
+                    "jira": {"version": "^3.8.0", "optional": True},
+                },
+                "extras": {"JIRA": ["jira"]},
+            }
+        }
+    }
+
+
+@pytest.fixture
+def pyproject_empty_base():
+    return {"project": {}}
+
+
+@pytest.mark.parametrize(
+    "key, value",
+    [
+        ("^3.6", ">=3.6"),
+        ("*", ""),
+        ("^1.2.3", ">=1.2.3"),
+    ],
+)
+def test_version_conversion(key, value):
+    assert poetry_to_uv.version_conversion(key) == value
 
 
 @pytest.mark.parametrize(
@@ -29,7 +73,7 @@ def read_poetry_toml_as_object(read_poetry_toml_as_text):
 def test_authors_maintainers(key, name, email):
     authors = [f"{name} <{email}>"]
     in_dict = {"project": {key: authors}}
-    expected = {"project": {key: f'[{{name = "{name}", email = "{email}"}}]'}}
+    expected = {"project": {key: [{"name": name, "email": email}]}}
     poetry_to_uv.authors_maintainers(in_dict)
     assert in_dict == expected
 
@@ -39,15 +83,22 @@ def test_authors_maintainers(key, name, email):
     [
         (
             ["First Last <first@domain2.nl>", "another <email@domain.nl>"],
-            '[{name = "First Last", email = "first@domain2.nl"}, {name = "another", email = "email@domain.nl"}]',
+            [
+                {"name": "First Last", "email": "first@domain2.nl"},
+                {"name": "another", "email": "email@domain.nl"},
+            ],
         ),
         (
             ["First Last", "<email@domain.nl>"],
-            '[{name = "First Last"}, {email = "email@domain.nl"}]',
+            [{"name": "First Last"}, {"email": "email@domain.nl"}],
         ),
         (
             ["First Last <first@domain2.nl>", "<email@domain.nl>", "First Last"],
-            '[{name = "First Last", email = "first@domain2.nl"}, {email = "email@domain.nl"}, {name = "First Last"}]',
+            [
+                {"name": "First Last", "email": "first@domain2.nl"},
+                {"email": "email@domain.nl"},
+                {"name": "First Last"},
+            ],
         ),
     ],
 )
@@ -58,177 +109,47 @@ def test_multiple_authors(authors, author_string):
     assert in_dict == expected
 
 
-def test_dependencies():
-    in_dict = {
-        "project": {
-            "dependencies": {
-                "pytest": "*",
-                "pytest-cov": "*",
-                "jira": "^3.8.0",
-            }
-        }
-    }
+def test_no_python_in_deps(org_toml):
+    deps = org_toml["tool"]["poetry"]["dependencies"]
+    uv_deps = []
+    poetry_to_uv.parse_packages(deps, uv_deps)
+    assert "python" not in uv_deps
+
+
+def test_dependencies(pyproject_empty_base, org_toml):
     expected = {"project": {"dependencies": ["pytest", "pytest-cov", "jira>=3.8.0"]}}
-    poetry_to_uv.dependencies(in_dict)
-    assert in_dict == expected
+    poetry_to_uv.dependencies(pyproject_empty_base, org_toml)
+    assert pyproject_empty_base == expected
 
 
-def test_optional_dependencies():
-    in_dict = {
-        "project": {
-            "dependencies": {
-                "pytest": "*",
-                "pytest-cov": "*",
-                "jira": {"version": "^3.8.0", "optional": True},
-            },
-            "extras": {"JIRA": ["jira"]},
-        }
-    }
+def test_optional_dependencies(pyproject_empty_base, org_toml_optional):
     expected = {
         "project": {
             "dependencies": ["pytest", "pytest-cov"],
             "optional-dependencies": {"JIRA": ["jira>=3.8.0"]},
         }
     }
-    poetry_to_uv.dependencies(in_dict)
-    assert in_dict == expected
+    poetry_to_uv.dependencies(pyproject_empty_base, org_toml_optional)
+    assert pyproject_empty_base == expected
 
 
-def test_dev_dependencies():
-    in_dict = {
-        "project": {
-            "group": {
-                "dev": {
-                    "dependencies": {
-                        "pytest": "*",
-                        "pytest-cov": "*",
-                        "jira": "^3.8.0",
-                    }
-                }
-            }
-        }
-    }
+def test_dev_dependencies(pyproject_empty_base, org_toml):
     expected = {
         "project": {},
-        "dependency-groups": {"dev": ["pytest", "pytest-cov", "jira>=3.8.0"]},
+        "dependency-groups": {"dev": ["mypy>=1.0.1"]},
     }
-    poetry_to_uv.dev_dependencies(in_dict)
-    assert in_dict == expected
+    poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
+    assert pyproject_empty_base == expected
 
 
-def test_modify_authors_line():
-    in_txt = """[project]
-name = "someproject"
-version = "0.1.0"
-description = "A project"
-authors = "[{ name = \"First Last\", email = \"first@domain.nl\" }]"
-license = "LICENSE"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "jira>=3.8.0",
-]
-"""
-    out_txt = """[project]
-name = "someproject"
-version = "0.1.0"
-description = "A project"
-authors = [{ name = "First Last", email = "first@domain.nl" }]
-license = "LICENSE"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "jira>=3.8.0",
-]
-"""
-    result = poetry_to_uv.modify_authors_maintainers_line(in_txt, "authors")
-    assert result == out_txt
-    assert (
-        poetry_to_uv.modify_authors_maintainers_line(result, "maintainers") == out_txt
-    )
-
-
-def test_modify_maintainers_line():
-    in_txt = """[project]
-name = "someproject"
-version = "0.1.0"
-description = "A project"
-maintainers = "[{ name = \"First Last\", email = \"first@domain.nl\" }]"
-license = "LICENSE"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "jira>=3.8.0",
-]
-"""
-    out_txt = """[project]
-name = "someproject"
-version = "0.1.0"
-description = "A project"
-maintainers = [{ name = "First Last", email = "first@domain.nl" }]
-license = "LICENSE"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "jira>=3.8.0",
-]
-"""
-    assert (
-        poetry_to_uv.modify_authors_maintainers_line(in_txt, "maintainers") == out_txt
-    )
-
-
-def test_modify_authors_and_maintainers_line():
-    in_txt = """[project]
-name = "someproject"
-version = "0.1.0"
-description = "A project"
-authors = "[{ name = \"First Last\", email = \"first@domain.nl\" }]"
-maintainers = "[{ name = \"First Last\", email = \"first@domain.nl\" }]"
-license = "LICENSE"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "jira>=3.8.0",
-]
-"""
-    out_txt = """[project]
-name = "someproject"
-version = "0.1.0"
-description = "A project"
-authors = [{ name = "First Last", email = "first@domain.nl" }]
-maintainers = [{ name = "First Last", email = "first@domain.nl" }]
-license = "LICENSE"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "jira>=3.8.0",
-]
-"""
-    result = poetry_to_uv.modify_authors_maintainers_line(in_txt, "authors")
-    assert (
-        poetry_to_uv.modify_authors_maintainers_line(result, "maintainers") == out_txt
-    )
-
-
-def test_modify_authors_and_maintainers_line_with_multiple_ids(
-    read_poetry_toml_as_object,
-):
-    uv_toml = {"tool": {}, "project": read_poetry_toml_as_object["tool"]["poetry"]}
-    poetry_to_uv.authors_maintainers(uv_toml)
-    in_txt = toml.dumps(uv_toml)
-    result = poetry_to_uv.modify_authors_maintainers_line(in_txt, "authors")
-    result = poetry_to_uv.modify_authors_maintainers_line(result, "maintainers")
-    obj = toml.loads(result)
-    assert_accounts = [
-        {"name": "another", "email": "email@domain.nl"},
-        {"email": "some@email.nl"},
-        {"name": "user"},
-    ]
-    # sourcery skip: no-loop-in-tests
-    for account in assert_accounts:
-        assert account in obj["project"]["authors"]
-        assert account in obj["project"]["maintainers"]
+def test_doc_dependencies(pyproject_empty_base, org_toml):
+    org_toml["tool"]["poetry"]["group"]["doc"] = {"dependencies": {"mkdocs": "*"}}
+    expected = {
+        "project": {},
+        "dependency-groups": {"dev": ["mypy>=1.0.1"], "doc": ["mkdocs"]},
+    }
+    poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
+    assert pyproject_empty_base == expected
 
 
 def test_project_license():
@@ -247,15 +168,18 @@ def test_project_license_file(tmp_path):
     assert in_dict == expected
 
 
-def test_build_system(read_poetry_toml_as_object):
+def test_build_system():
     in_dict = {
-        "build-system": read_poetry_toml_as_object["build-system"],
-    }
-    expected = {
         "build-system": {
             "requires": ["poetry-core>=1.0.0"],
             "build-backend": "poetry.core.masonry.api",
         }
     }
-    poetry_to_uv.blocks_as_is(in_dict, in_dict)
+    expected = {
+        "build-system": {
+            "requires": ["hatchling"],
+            "build-backend": "hatchling.build",
+        }
+    }
+    poetry_to_uv.build_system(in_dict, in_dict)
     assert in_dict == expected
