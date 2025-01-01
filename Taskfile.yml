@@ -13,3 +13,8 @@ tasks:
     cmds:
       - uv run python poetry_to_uv.py tests/files/poetry_pyproject.toml -n
       - cat tests/files/pyproject_temp_uv.toml
+
+  cov:
+    desc: "Run tests with coverage"
+    cmds:
+      - uv run pytest --cov=poetry_to_uv --cov-report html tests/ -v

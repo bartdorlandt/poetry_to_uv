@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import tomlkit
 
 import poetry_to_uv
 
@@ -47,6 +48,14 @@ def org_toml_optional():
 @pytest.fixture
 def pyproject_empty_base():
     return {"project": {}}
+
+
+@pytest.fixture
+def toml_obj():
+    def inner(filepath: str):
+        return tomlkit.loads(Path(filepath).read_text())
+
+    return inner
 
 
 @pytest.mark.parametrize(
@@ -112,7 +121,7 @@ def test_multiple_authors(authors, author_string):
 def test_no_python_in_deps(org_toml):
     deps = org_toml["tool"]["poetry"]["dependencies"]
     uv_deps = []
-    poetry_to_uv.parse_packages(deps, uv_deps)
+    uv_deps, _, _ = poetry_to_uv.parse_packages(deps)
     assert "python" not in uv_deps
 
 
@@ -131,6 +140,34 @@ def test_optional_dependencies(pyproject_empty_base, org_toml_optional):
     }
     poetry_to_uv.dependencies(pyproject_empty_base, org_toml_optional)
     assert pyproject_empty_base == expected
+
+
+def test_extras_dependencies():
+    in_txt = """
+    [tool.poetry.dependencies]
+    python = "^3.12"
+    pytest = "*"
+    pandas = {version="^2.2.1", extras=["computation", "performance"]}
+    fastapi = {version="^0.92.0", extras=["all"]}
+    """
+    in_dict = tomlkit.loads(in_txt)
+    deps = in_dict["tool"]["poetry"]["dependencies"]
+    expected = [
+        "pytest",
+        "pandas[computation]>=2.2.1",
+        "pandas[performance]>=2.2.1",
+        "fastapi[all]>=0.92.0",
+    ]
+    uv_deps, _, _ = poetry_to_uv.parse_packages(deps)
+    assert uv_deps == expected
+
+
+def test_tools_remain_the_same(toml_obj):
+    org_toml = toml_obj("tests/files/tools_org.toml")
+    new_toml = toml_obj("tests/files/tools_new.toml")
+    poetry_to_uv.tools(new_toml, org_toml)
+    del org_toml["tool"]["poetry"]
+    assert new_toml == org_toml
 
 
 def test_dev_dependencies(pyproject_empty_base, org_toml):

@@ -1,0 +1,49 @@
+[tool.poetry]
+name = "name of the project"
+version = "0.1.0"
+description = "A description"
+authors = ["another <email@domain.nl>", "<some@email.nl>", "user"]
+maintainers = ["another <email@domain.nl>", "<some@email.nl>", "user"]
+license = "LICENSE"
+readme = "README.md"
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+exclude = ["tests"]
+
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+    ".git",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "noxfile.py",
+    "tests",
+]
+
+[tool.ruff.lint]
+extend-ignore = ["D203", "D213", "PLR2004"]
+extend-select = [
+    # pycodestyle errors and warnings
+    "E",
+    "W",
+    # mccabe
+    "C90",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # pylint
+    "PL",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]

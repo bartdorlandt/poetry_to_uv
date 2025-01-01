@@ -61,27 +61,29 @@ def authors_maintainers(new_toml: tk.TOMLDocument):
                 project[key] = new_authors
 
 
-def parse_packages(deps: dict, uv_deps: list[str], uv_deps_optional=None):
-    if uv_deps_optional is None:
-        uv_deps_optional = {}
+def parse_packages(deps: dict):
+    uv_deps: list[str] = []
+    uv_deps_optional: dict[str, str] = {}
+    uv_deps_source = {}
     for name, version in deps.items():
-        extra = ""
         if name == "python":
             continue
 
         if isinstance(version, dict):
-            # deal with extras
             if extras := version.get("extras"):
                 v = version["version"]
                 for i in extras:
                     extra = f"[{i}]"
                     uv_deps.append(f"{name}{extra}{version_conversion(v)}")
-                continue
-            if version.get("optional"):
+            elif version.get("optional"):
                 uv_deps_optional[name] = version_conversion(version["version"])
-                continue
+            elif source := version.get("source"):
+                uv_deps_source[name] = source
+                uv_deps.append(f"{name}{version_conversion(version["version"])}")
+            continue
 
-        uv_deps.append(f"{name}{extra}{version_conversion(version)}")
+        uv_deps.append(f"{name}{version_conversion(version)}")
+    return uv_deps, uv_deps_optional, uv_deps_source
 
 
 def group_dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> None:
@@ -98,8 +100,7 @@ def group_dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> 
                 f"The optional flag is ignored. You'll have to take care of this! group: {group}"
             )
         uv_deps = []
-        uv_deps_optional = {}
-        parse_packages(data.get("dependencies", {}), uv_deps, uv_deps_optional)
+        uv_deps, _, _ = parse_packages(data.get("dependencies", {}))
         new_toml["dependency-groups"] = new_toml.get("dependency-groups", tk.table())
         new_toml["dependency-groups"].add(group, uv_deps)
 
@@ -107,10 +108,8 @@ def group_dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> 
 def dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> None:
     if not (deps := org_toml["tool"]["poetry"].get("dependencies", {})):
         return
-    uv_deps = []
-    uv_deps_optional = {}
 
-    parse_packages(deps, uv_deps, uv_deps_optional)
+    uv_deps, uv_deps_optional, uv_deps_source = parse_packages(deps)
     new_toml["project"]["dependencies"] = tk.array()
     if uv_deps:
         for x in uv_deps:
@@ -123,11 +122,21 @@ def dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> None:
             for extra, deps in org_toml["tool"]["poetry"].pop("extras", {}).items()
         }
         new_toml["project"]["optional-dependencies"] = optional_deps
+    if uv_deps_source:
+        new_toml["tool"] = {"uv": {"sources": tk.table()}}
+        for lib, source in uv_deps_source.items():
+            for entry in org_toml["tool"]["poetry"]["source"]:
+                if entry.get("name") == source:
+                    url = entry.get("url")
+                    break
+            new_toml["tool"]["uv"]["sources"].add(
+                lib, tk.inline_table().add("git", url)
+            )
 
 
 def tools(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument):
     if org_toml["tool"]:
-        new_toml["tool"] = tk.table()
+        new_toml["tool"] = new_toml.get("tool", tk.table())
         for tool, data in org_toml["tool"].items():
             if tool == "poetry":
                 continue
