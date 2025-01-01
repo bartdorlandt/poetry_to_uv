@@ -1,15 +1,8 @@
 from pathlib import Path
 
 import pytest
-import tomlkit
 
 import poetry_to_uv
-
-
-@pytest.fixture
-def read_poetry_toml_as_text():
-    f = Path("tests/files/poetry_pyproject.toml")
-    return f.read_text()
 
 
 @pytest.fixture
@@ -18,6 +11,7 @@ def org_toml():
         "tool": {
             "poetry": {
                 "dependencies": {
+                    "python": "^3.12",
                     "pytest": "*",
                     "pytest-cov": "*",
                     "jira": "^3.8.0",
@@ -51,8 +45,20 @@ def org_toml_optional():
 
 
 @pytest.fixture
-def read_poetry_toml_as_object(read_poetry_toml_as_text):
-    return tomlkit.loads(read_poetry_toml_as_text)
+def pyproject_empty_base():
+    return {"project": {}}
+
+
+@pytest.mark.parametrize(
+    "key, value",
+    [
+        ("^3.6", ">=3.6"),
+        ("*", ""),
+        ("^1.2.3", ">=1.2.3"),
+    ],
+)
+def test_version_conversion(key, value):
+    assert poetry_to_uv.version_conversion(key) == value
 
 
 @pytest.mark.parametrize(
@@ -66,8 +72,8 @@ def read_poetry_toml_as_object(read_poetry_toml_as_text):
 )
 def test_authors_maintainers(key, name, email):
     authors = [f"{name} <{email}>"]
-    in_dict = {key: authors}
-    expected = {key: [{"name": name, "email": email}]}
+    in_dict = {"project": {key: authors}}
+    expected = {"project": {key: [{"name": name, "email": email}]}}
     poetry_to_uv.authors_maintainers(in_dict)
     assert in_dict == expected
 
@@ -97,79 +103,77 @@ def test_authors_maintainers(key, name, email):
     ],
 )
 def test_multiple_authors(authors, author_string):
-    in_dict = {"authors": authors}
-    expected = {"authors": author_string}
+    in_dict = {"project": {"authors": authors}}
+    expected = {"project": {"authors": author_string}}
     poetry_to_uv.authors_maintainers(in_dict)
     assert in_dict == expected
 
 
-def test_dependencies(org_toml):
-    in_dict = {
-        "project": {
-            "dependencies": {
-                "pytest": "*",
-                "pytest-cov": "*",
-                "jira": "^3.8.0",
-            }
-        }
-    }
+def test_no_python_in_deps(org_toml):
+    deps = org_toml["tool"]["poetry"]["dependencies"]
+    uv_deps = []
+    poetry_to_uv.parse_packages(deps, uv_deps)
+    assert "python" not in uv_deps
+
+
+def test_dependencies(pyproject_empty_base, org_toml):
     expected = {"project": {"dependencies": ["pytest", "pytest-cov", "jira>=3.8.0"]}}
-    poetry_to_uv.dependencies(in_dict, org_toml)
-    assert in_dict == expected
+    poetry_to_uv.dependencies(pyproject_empty_base, org_toml)
+    assert pyproject_empty_base == expected
 
 
-def test_optional_dependencies(org_toml_optional):
-    in_dict = {
-        "project": {
-            "dependencies": {
-                "pytest": "*",
-                "pytest-cov": "*",
-            },
-        }
-    }
+def test_optional_dependencies(pyproject_empty_base, org_toml_optional):
     expected = {
         "project": {
             "dependencies": ["pytest", "pytest-cov"],
             "optional-dependencies": {"JIRA": ["jira>=3.8.0"]},
         }
     }
-    poetry_to_uv.dependencies(in_dict, org_toml_optional)
-    assert in_dict == expected
+    poetry_to_uv.dependencies(pyproject_empty_base, org_toml_optional)
+    assert pyproject_empty_base == expected
 
 
-def test_dev_dependencies(org_toml):
-    in_dict = {"project": {}}
+def test_dev_dependencies(pyproject_empty_base, org_toml):
     expected = {
         "project": {},
         "dependency-groups": {"dev": ["mypy>=1.0.1"]},
     }
-    poetry_to_uv.dev_dependencies(in_dict, org_toml)
-    assert in_dict == expected
+    poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
+    assert pyproject_empty_base == expected
 
 
-{"project": {"license": "MIT"}}
-{"project": {"license": {"text": "MIT"}}}
+def test_doc_dependencies(pyproject_empty_base, org_toml):
+    org_toml["tool"]["poetry"]["group"]["doc"] = {"dependencies": {"mkdocs": "*"}}
+    expected = {
+        "project": {},
+        "dependency-groups": {"dev": ["mypy>=1.0.1"], "doc": ["mkdocs"]},
+    }
+    poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
+    assert pyproject_empty_base == expected
 
 
 def test_project_license():
-    in_dict = {"license": "MIT"}
-    expected = {"license": {"text": "MIT"}}
+    in_dict = {"project": {"license": "MIT"}}
+    expected = {"project": {"license": {"text": "MIT"}}}
     poetry_to_uv.project_license(in_dict, Path())
     assert in_dict == expected
 
 
 def test_project_license_file(tmp_path):
     license_name = "license_file_name"
-    in_dict = {"license": license_name}
+    in_dict = {"project": {"license": license_name}}
     tmp_path.joinpath(license_name).touch()
-    expected = {"license": {"file": license_name}}
+    expected = {"project": {"license": {"file": license_name}}}
     poetry_to_uv.project_license(in_dict, tmp_path)
     assert in_dict == expected
 
 
-def test_build_system(read_poetry_toml_as_object):
+def test_build_system():
     in_dict = {
-        "build-system": read_poetry_toml_as_object["build-system"],
+        "build-system": {
+            "requires": ["poetry-core>=1.0.0"],
+            "build-backend": "poetry.core.masonry.api",
+        }
     }
     expected = {
         "build-system": {

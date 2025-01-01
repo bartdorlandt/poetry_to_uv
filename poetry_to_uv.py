@@ -33,7 +33,8 @@ def version_conversion(version: str) -> str:
         raise ValueError
 
 
-def authors_maintainers(project: tk.table):
+def authors_maintainers(new_toml: tk.TOMLDocument):
+    project = new_toml["project"]
     user_email = re.compile(r"^([\w ]+) <([\w@.]+)>$")
     only_email = re.compile(r"^<([\w@.]+)>$")
     only_user = re.compile(r"^([\w ]+)$")
@@ -60,12 +61,6 @@ def authors_maintainers(project: tk.table):
                 project[key] = new_authors
 
 
-def python_version(project: tk.table):
-    # check specific python version
-    if version := project.get("requires-python"):
-        project["requires-python"] = version_conversion(version)
-
-
 def parse_packages(deps: dict, uv_deps: list[str], uv_deps_optional=None):
     if uv_deps_optional is None:
         uv_deps_optional = {}
@@ -76,9 +71,9 @@ def parse_packages(deps: dict, uv_deps: list[str], uv_deps_optional=None):
 
         if isinstance(version, dict):
             # deal with extras
-            if e := version.get("extras"):
+            if extras := version.get("extras"):
                 v = version["version"]
-                for i in e:
+                for i in extras:
                     extra = f"[{i}]"
                     uv_deps.append(f"{name}{extra}{version_conversion(v)}")
                 continue
@@ -89,22 +84,24 @@ def parse_packages(deps: dict, uv_deps: list[str], uv_deps_optional=None):
         uv_deps.append(f"{name}{extra}{version_conversion(version)}")
 
 
-def dev_dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> None:
-    if not (
-        deps := org_toml["tool"]["poetry"]
-        .get("group", {})
-        .get("dev", {})
-        .get("dependencies", {})
-    ):
+def group_dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> None:
+    if not (groups := org_toml["tool"]["poetry"].get("group", {})):
         return
-    if org_toml["tool"]["poetry"].get("group", {}).get("dev", {}).get("optional", ""):
-        print("The Dev optional flag is ignored. You'll have to take care of this!")
-
-    uv_deps = []
-    parse_packages(deps, uv_deps)
-    dep_groups = tk.table()
-    dep_groups.add("dev", uv_deps)
-    new_toml["dependency-groups"] = dep_groups
+    for group, data in groups.items():
+        if (
+            org_toml["tool"]["poetry"]
+            .get("group", {})
+            .get(group, {})
+            .get("optional", "")
+        ):
+            print(
+                f"The optional flag is ignored. You'll have to take care of this! group: {group}"
+            )
+        uv_deps = []
+        uv_deps_optional = {}
+        parse_packages(data.get("dependencies", {}), uv_deps, uv_deps_optional)
+        new_toml["dependency-groups"] = new_toml.get("dependency-groups", tk.table())
+        new_toml["dependency-groups"].add(group, uv_deps)
 
 
 def dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> None:
@@ -146,7 +143,9 @@ def build_system(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument):
             new_toml["build-system"]["build-backend"] = "hatchling.build"
 
 
-def project_base(project: tk.table, org_toml: tk.TOMLDocument):
+def project_base(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument):
+    project = new_toml["project"]
+
     project.add("name", org_toml["tool"]["poetry"]["name"])
     project.add("version", org_toml["tool"]["poetry"]["version"])
     if description := org_toml["tool"]["poetry"].get("description"):
@@ -160,13 +159,13 @@ def project_base(project: tk.table, org_toml: tk.TOMLDocument):
     if readme := org_toml["tool"]["poetry"].get("readme"):
         project.add("readme", readme)
     if requirespython := org_toml["tool"]["poetry"].get("requires-python"):
-        project.add("requires-python", requirespython)
+        project.add("requires-python", version_conversion(requirespython))
     elif (
         requirespython := org_toml["tool"]["poetry"]
         .get("dependencies", {})
         .get("python")
     ):
-        project.add("requires-python", requirespython)
+        project.add("requires-python", version_conversion(requirespython))
     if keywords := org_toml["tool"]["poetry"].get("keywords"):
         project.add("keywords", keywords)
     if classifiers := org_toml["tool"]["poetry"].get("classifiers"):
@@ -181,7 +180,8 @@ def project_base(project: tk.table, org_toml: tk.TOMLDocument):
         project.add("dependencies", dependencies)
 
 
-def project_license(project: tk.table, project_dir: Path):
+def project_license(new_toml: tk.TOMLDocument, project_dir: Path):
+    project = new_toml["project"]
     if license := project.get("license"):
         if project_dir.joinpath(license).exists():
             project["license"] = tk.inline_table().add("file", license)
@@ -192,12 +192,10 @@ def project_license(project: tk.table, project_dir: Path):
 def poetry_section_specific(
     new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument, dir: Path
 ):
-    project = new_toml["project"]
-    project_base(project, org_toml)
-    project_license(project, dir)
-    python_version(project)
-    authors_maintainers(project)
-    dev_dependencies(new_toml, org_toml)
+    project_base(new_toml, org_toml)
+    project_license(new_toml, dir)
+    authors_maintainers(new_toml)
+    group_dependencies(new_toml, org_toml)
     dependencies(new_toml, org_toml)
 
 
