@@ -162,14 +162,6 @@ def test_extras_dependencies():
     assert uv_deps == expected
 
 
-def test_tools_remain_the_same(toml_obj):
-    org_toml = toml_obj("tests/files/tools_org.toml")
-    new_toml = toml_obj("tests/files/tools_new.toml")
-    poetry_to_uv.tools(new_toml, org_toml)
-    del org_toml["tool"]["poetry"]
-    assert new_toml == org_toml
-
-
 def test_dev_dependencies(pyproject_empty_base, org_toml):
     expected = {
         "project": {},
@@ -177,6 +169,53 @@ def test_dev_dependencies(pyproject_empty_base, org_toml):
     }
     poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
     assert pyproject_empty_base == expected
+
+
+def test_dev_dependencies_optional(pyproject_empty_base):
+    in_dict = {
+        "tool": {
+            "poetry": {
+                "group": {
+                    "dev": {
+                        "dependencies": {
+                            "mypy": "^1.0.1",
+                            "jira": {"version": "^3.8.0", "optional": True},
+                        }
+                    }
+                },
+                "extras": {"JIRA": ["jira"]},
+            }
+        }
+    }
+    poetry_to_uv.group_dependencies(pyproject_empty_base, in_dict)
+    expected = {
+        "project": {"optional-dependencies": {"JIRA": ["jira>=3.8.0"]}},
+        "dependency-groups": {"dev": ["mypy>=1.0.1"]},
+    }
+    assert pyproject_empty_base == expected
+
+
+def test_dev_extras_dependencies(pyproject_empty_base):
+    in_txt = """
+    [tool.poetry.dependencies]
+    python = "^3.12"
+    pytest = "*"
+
+    [tool.poetry.group.dev.dependencies]
+    fastapi = {version="^0.92.0", extras=["all"]}
+    """
+    in_dict = tomlkit.loads(in_txt)
+    poetry_to_uv.group_dependencies(pyproject_empty_base, in_dict)
+    expected = {"project": {}, "dependency-groups": {"dev": ["fastapi[all]>=0.92.0"]}}
+    assert pyproject_empty_base == expected
+
+
+def test_tools_remain_the_same(toml_obj):
+    org_toml = toml_obj("tests/files/tools_org.toml")
+    new_toml = toml_obj("tests/files/tools_new.toml")
+    poetry_to_uv.tools(new_toml, org_toml)
+    del org_toml["tool"]["poetry"]
+    assert new_toml == org_toml
 
 
 def test_doc_dependencies(pyproject_empty_base, org_toml):
@@ -220,3 +259,55 @@ def test_build_system():
     }
     poetry_to_uv.build_system(in_dict, in_dict)
     assert in_dict == expected
+
+
+def test_poetry_sources(pyproject_empty_base):
+    in_txt = """
+    [tool.poetry.dependencies]
+    python = "^3.12"
+    requests = { version = "^2.13.0", source = "private" }
+
+    [[tool.poetry.source]]
+    name = "private"
+    url = "http://example.com/simple"
+    """
+    in_dict = tomlkit.loads(in_txt)
+    poetry_to_uv.dependencies(pyproject_empty_base, in_dict)
+    expected = {
+        "project": {"dependencies": ["requests>=2.13.0"]},
+        "tool": {"uv": {"sources": {"requests": {"git": "http://example.com/simple"}}}},
+    }
+    assert pyproject_empty_base == expected
+
+
+def test_normal_and_dev_poetry_sources(pyproject_empty_base):
+    in_txt = """
+    [tool.poetry.group.dev.dependencies]
+    requests = { version = "^2.13.0", source = "private" }
+
+    [tool.poetry.group.doc.dependencies]
+    httpx = { version = "^1.13.0", source = "other" }
+
+    [[tool.poetry.source]]
+    name = "private"
+    url = "http://example.com/simple"
+
+    [[tool.poetry.source]]
+    name = "other"
+    url = "http://other.com/simple"
+    """
+    in_dict = tomlkit.loads(in_txt)
+    poetry_to_uv.group_dependencies(pyproject_empty_base, in_dict)
+    expected = {
+        "project": {},
+        "dependency-groups": {"dev": ["requests>=2.13.0"], "doc": ["httpx>=1.13.0"]},
+        "tool": {
+            "uv": {
+                "sources": {
+                    "requests": {"git": "http://example.com/simple"},
+                    "httpx": {"git": "http://other.com/simple"},
+                }
+            }
+        },
+    }
+    assert pyproject_empty_base == expected
