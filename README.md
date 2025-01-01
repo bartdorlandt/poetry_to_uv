@@ -20,5 +20,8 @@ The script can be run as a tool using [`uvx`](https://docs.astral.sh/uv/guides/t
 # Contribute
 Though I've tried to make it as complete as possible, it is not guaranteed to work for all cases. Feel free to contribute to the code or create an issue with the toml file that is not converted correctly.
 
-Cheers,
-Bart Dorlandt
+# Links
+* https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
+* https://docs.astral.sh/uv/concepts/projects/layout/
+* https://python-poetry.org/docs/pyproject/
+
