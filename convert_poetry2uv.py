@@ -8,7 +8,7 @@ import tomlkit as tk
 
 def argparser() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="poetry_to_uv",
+        prog="convert_poetry2uv",
         description="Poetry to Uv pyproject conversion",
         epilog="It will move the original pyproject.toml to pyproject.toml.org",
     )

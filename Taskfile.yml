@@ -11,17 +11,17 @@ tasks:
     desc: "Generate test output"
     aliases: [gen]
     cmds:
-      - uv run python poetry_to_uv.py tests/files/poetry_pyproject.toml -n
+      - uv run python convert_poetry2uv.py tests/files/poetry_pyproject.toml -n
       - cat tests/files/pyproject_temp_uv.toml
 
   cov:
     desc: "Run tests with coverage"
     cmds:
-      - uv run pytest --cov=poetry_to_uv --cov-report html tests/ -v
+      - uv run pytest --cov=convert_poetry2uv --cov-report html tests/ -v
 
   new_uv_pyproject:
     desc: "Create a uv_pyproject toml file for tests"
     aliases: [new_uv]
     cmds:
-      - uv run python poetry_to_uv.py tests/files/poetry_pyproject.toml -n
+      - uv run python convert_poetry2uv.py tests/files/poetry_pyproject.toml -n
       - mv tests/files/pyproject_temp_uv.toml tests/files/uv_pyproject.toml

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import tomlkit
 
-import poetry_to_uv
+import convert_poetry2uv
 
 
 @pytest.mark.parametrize(
@@ -16,7 +16,7 @@ import poetry_to_uv
     ],
 )
 def test_version_conversion(key, value):
-    assert poetry_to_uv.version_conversion(key) == value
+    assert convert_poetry2uv.version_conversion(key) == value
 
 
 @pytest.mark.parametrize(
@@ -32,7 +32,7 @@ def test_authors_maintainers(key, name, email):
     authors = [f"{name} <{email}>"]
     in_dict = {"project": {key: authors}}
     expected = {"project": {key: [{"name": name, "email": email}]}}
-    poetry_to_uv.authors_maintainers(in_dict)
+    convert_poetry2uv.authors_maintainers(in_dict)
     assert in_dict == expected
 
 
@@ -63,20 +63,20 @@ def test_authors_maintainers(key, name, email):
 def test_multiple_authors(authors, author_string):
     in_dict = {"project": {"authors": authors}}
     expected = {"project": {"authors": author_string}}
-    poetry_to_uv.authors_maintainers(in_dict)
+    convert_poetry2uv.authors_maintainers(in_dict)
     assert in_dict == expected
 
 
 def test_no_python_in_deps(org_toml):
     deps = org_toml["tool"]["poetry"]["dependencies"]
     uv_deps = []
-    uv_deps, _, _ = poetry_to_uv.parse_packages(deps)
+    uv_deps, _, _ = convert_poetry2uv.parse_packages(deps)
     assert "python" not in uv_deps
 
 
 def test_dependencies(pyproject_empty_base, org_toml):
     expected = {"project": {"dependencies": ["pytest", "pytest-cov", "jira>=3.8.0"]}}
-    poetry_to_uv.dependencies(pyproject_empty_base, org_toml)
+    convert_poetry2uv.dependencies(pyproject_empty_base, org_toml)
     assert pyproject_empty_base == expected
 
 
@@ -87,7 +87,7 @@ def test_optional_dependencies(pyproject_empty_base, org_toml_optional):
             "optional-dependencies": {"JIRA": ["jira>=3.8.0"]},
         }
     }
-    poetry_to_uv.dependencies(pyproject_empty_base, org_toml_optional)
+    convert_poetry2uv.dependencies(pyproject_empty_base, org_toml_optional)
     assert pyproject_empty_base == expected
 
 
@@ -107,7 +107,7 @@ def test_extras_dependencies():
         "pandas[performance]>=2.2.1",
         "fastapi[all]>=0.92.0",
     ]
-    uv_deps, _, _ = poetry_to_uv.parse_packages(deps)
+    uv_deps, _, _ = convert_poetry2uv.parse_packages(deps)
     assert uv_deps == expected
 
 
@@ -116,7 +116,7 @@ def test_dev_dependencies(pyproject_empty_base, org_toml):
         "project": {},
         "dependency-groups": {"dev": ["mypy>=1.0.1"]},
     }
-    poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
+    convert_poetry2uv.group_dependencies(pyproject_empty_base, org_toml)
     assert pyproject_empty_base == expected
 
 
@@ -136,7 +136,7 @@ def test_dev_dependencies_optional(pyproject_empty_base):
             }
         }
     }
-    poetry_to_uv.group_dependencies(pyproject_empty_base, in_dict)
+    convert_poetry2uv.group_dependencies(pyproject_empty_base, in_dict)
     expected = {
         "project": {"optional-dependencies": {"JIRA": ["jira>=3.8.0"]}},
         "dependency-groups": {"dev": ["mypy>=1.0.1"]},
@@ -154,7 +154,7 @@ def test_dev_extras_dependencies(pyproject_empty_base):
     fastapi = {version="^0.92.0", extras=["all"]}
     """
     in_dict = tomlkit.loads(in_txt)
-    poetry_to_uv.group_dependencies(pyproject_empty_base, in_dict)
+    convert_poetry2uv.group_dependencies(pyproject_empty_base, in_dict)
     expected = {"project": {}, "dependency-groups": {"dev": ["fastapi[all]>=0.92.0"]}}
     assert pyproject_empty_base == expected
 
@@ -162,7 +162,7 @@ def test_dev_extras_dependencies(pyproject_empty_base):
 def test_tools_remain_the_same(toml_obj):
     org_toml = toml_obj("tests/files/tools_org.toml")
     new_toml = toml_obj("tests/files/tools_new.toml")
-    poetry_to_uv.tools(new_toml, org_toml)
+    convert_poetry2uv.tools(new_toml, org_toml)
     del org_toml["tool"]["poetry"]
     assert new_toml == org_toml
 
@@ -173,14 +173,14 @@ def test_doc_dependencies(pyproject_empty_base, org_toml):
         "project": {},
         "dependency-groups": {"dev": ["mypy>=1.0.1"], "doc": ["mkdocs"]},
     }
-    poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
+    convert_poetry2uv.group_dependencies(pyproject_empty_base, org_toml)
     assert pyproject_empty_base == expected
 
 
 def test_project_license(tmp_path):
     in_dict = {"project": {"license": "MIT"}}
     expected = {"project": {"license": {"text": "MIT"}}}
-    poetry_to_uv.project_license(in_dict, tmp_path)
+    convert_poetry2uv.project_license(in_dict, tmp_path)
     assert in_dict == expected
 
 
@@ -189,7 +189,7 @@ def test_project_license_file(tmp_path):
     in_dict = {"project": {"license": license_name}}
     tmp_path.joinpath(license_name).touch()
     expected = {"project": {"license": {"file": license_name}}}
-    poetry_to_uv.project_license(in_dict, tmp_path)
+    convert_poetry2uv.project_license(in_dict, tmp_path)
     assert in_dict == expected
 
 
@@ -206,7 +206,7 @@ def test_build_system():
             "build-backend": "hatchling.build",
         }
     }
-    poetry_to_uv.build_system(in_dict, in_dict)
+    convert_poetry2uv.build_system(in_dict, in_dict)
     assert in_dict == expected
 
 
@@ -221,7 +221,7 @@ def test_poetry_sources(pyproject_empty_base):
     url = "http://example.com/simple"
     """
     in_dict = tomlkit.loads(in_txt)
-    poetry_to_uv.dependencies(pyproject_empty_base, in_dict)
+    convert_poetry2uv.dependencies(pyproject_empty_base, in_dict)
     expected = {
         "project": {"dependencies": ["requests>=2.13.0"]},
         "tool": {"uv": {"sources": {"requests": {"git": "http://example.com/simple"}}}},
@@ -246,7 +246,7 @@ def test_normal_and_dev_poetry_sources(pyproject_empty_base):
     url = "http://other.com/simple"
     """
     in_dict = tomlkit.loads(in_txt)
-    poetry_to_uv.group_dependencies(pyproject_empty_base, in_dict)
+    convert_poetry2uv.group_dependencies(pyproject_empty_base, in_dict)
     expected = {
         "project": {},
         "dependency-groups": {"dev": ["requests>=2.13.0"], "doc": ["httpx>=1.13.0"]},
@@ -265,7 +265,7 @@ def test_normal_and_dev_poetry_sources(pyproject_empty_base):
 def test_project_base(toml_obj, pyproject_empty_base):
     org_toml = toml_obj("tests/files/poetry_pyproject.toml")
     new_toml = pyproject_empty_base
-    poetry_to_uv.project_base(new_toml, org_toml)
+    convert_poetry2uv.project_base(new_toml, org_toml)
     expected = {
         "project": {
             "name": "name of the project",
@@ -293,7 +293,7 @@ def test_project_base(toml_obj, pyproject_empty_base):
 def test_project_base(toml_obj, pyproject_empty_base, expected_project_base):
     org_toml = toml_obj("tests/files/poetry_pyproject.toml")
     new_toml = pyproject_empty_base
-    poetry_to_uv.project_base(new_toml, org_toml)
+    convert_poetry2uv.project_base(new_toml, org_toml)
     assert new_toml == expected_project_base
 
 
@@ -304,22 +304,22 @@ def test_project_base_require_python(
     org_toml["tool"]["poetry"]["requires-python"] = "^3.10"
     expected_project_base["project"]["requires-python"] = ">=3.10"
     new_toml = pyproject_empty_base
-    poetry_to_uv.project_base(new_toml, org_toml)
+    convert_poetry2uv.project_base(new_toml, org_toml)
     assert new_toml == expected_project_base
 
 
 def test_empty_group_dependencies(org_toml, pyproject_empty_base):
     del org_toml["tool"]["poetry"]["group"]
-    poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
+    convert_poetry2uv.group_dependencies(pyproject_empty_base, org_toml)
     assert pyproject_empty_base == {"project": {}}
 
 
 def test_argparser(mocker):
     mocker.patch(
         "sys.argv",
-        ["poetry_to_uv.py", "tests/files/poetry_pyproject.toml", "-n"],
+        ["convert_poetry2uv.py", "tests/files/poetry_pyproject.toml", "-n"],
     )
-    sys_argv = poetry_to_uv.argparser()
+    sys_argv = convert_poetry2uv.argparser()
     assert sys_argv.filename == "tests/files/poetry_pyproject.toml"
     assert sys_argv.n is True
 
@@ -335,7 +335,7 @@ def test_plugins(pyproject_empty_base):
     """
     in_dict = tomlkit.loads(in_txt)
     expected = tomlkit.loads(exp_txt)
-    poetry_to_uv.poetry_plugins(pyproject_empty_base, in_dict)
+    convert_poetry2uv.poetry_plugins(pyproject_empty_base, in_dict)
     assert pyproject_empty_base == expected
 
 
@@ -345,9 +345,9 @@ def test_main_dry_run(mocker, tmp_path):
     shutil.copy(src, filename)
     mocker.patch(
         "sys.argv",
-        ["poetry_to_uv.py", str(filename), "-n"],
+        ["convert_poetry2uv.py", str(filename), "-n"],
     )
-    poetry_to_uv.main()
+    convert_poetry2uv.main()
     should_match = Path("tests/files/uv_pyproject.toml").read_text()
     generated_toml_txt = filename.parent.joinpath("pyproject_temp_uv.toml").read_text()
     assert generated_toml_txt == should_match
@@ -359,9 +359,9 @@ def test_main(mocker, tmp_path):
     shutil.copy(src, filename)
     mocker.patch(
         "sys.argv",
-        ["poetry_to_uv.py", str(filename)],
+        ["convert_poetry2uv.py", str(filename)],
     )
-    poetry_to_uv.main()
+    convert_poetry2uv.main()
     should_match = Path("tests/files/uv_pyproject.toml").read_text()
     generated_toml_txt = filename.read_text()
     assert generated_toml_txt == should_match
