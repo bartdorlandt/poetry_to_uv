@@ -35,7 +35,7 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-latest
-    # environment: testpypi
+
     environment:
       name: testpypi
       url: https://test.pypi.org/p/convert-poetry2uv
@@ -53,3 +53,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          # password: ${{ secrets.PYPI_API_TOKEN }}
+          verbose: true
