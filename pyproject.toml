@@ -1,6 +1,6 @@
 [project]
 name = "convert-poetry2uv"
-version = "0.1.3"
+version = "0.1.4"
 description = "Poetry to uv tool. To migrate from a poetry managed repo to uv."
 authors = [{ "name" = "Bart", "email" = "bart@bamweb.nl" }]
 readme = "README.md"
@@ -17,3 +17,9 @@ convert_poetry2uv = "convert_poetry2uv:main"
 
 [tool.uv]
 package = true
+
+[project.urls]
+"Pull Requests" = "https://github.com/bartdorlandt/convert_poetry2uv/pulls"
+"Bug Tracker" = "https://github.com/bartdorlandt/convert_poetry2uv/issues"
+"Changelog" = "https://github.com/bartdorlandt/convert_poetry2uv/blob/main/CHANGELOG.md"
+"Repository" = "https://github.com/bartdorlandt/convert_poetry2uv"
