@@ -35,10 +35,10 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-latest
-    environment: testpypi
-    # env:
-    #   name: testpypi
-    #   url: https://test.pypi.org/p/convert-poetry2uv
+    # environment: testpypi
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/convert-poetry2uv
 
     permissions:
       id-token: write # IMPORTANT: mandatory for trusted publishing
