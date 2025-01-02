@@ -5,8 +5,6 @@ from pathlib import Path
 
 import tomlkit as tk
 
-gt_version = re.compile(r"\^(\d.*)")
-
 
 def argparser() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -24,10 +22,11 @@ def argparser() -> argparse.Namespace:
 
 
 def version_conversion(version: str) -> str:
+    gt_version = re.compile(r"\^(\d.*)")
     if version == "*":
         return ""
     elif found := gt_version.match(version):
-        return f">={found.group(1)}"
+        return f">={found[1]}"
     else:
         print(f"Well, this is an unexpected version\nVersion = {version}\n")
         raise ValueError
