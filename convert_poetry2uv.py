@@ -22,10 +22,13 @@ def argparser() -> argparse.Namespace:
 
 
 def version_conversion(version: str) -> str:
-    gt_version = re.compile(r"\^(\d.*)")
+    gt_tilde_version = re.compile(r"[\^~](\d.*)")
+    tilde_with_digits_and_star = re.compile(r"^~([\d\.]+)\.\*")
     if version == "*":
         return ""
-    elif found := gt_version.match(version):
+    elif found := tilde_with_digits_and_star.match(version):
+        return f">={found[1]}"
+    elif found := gt_tilde_version.match(version):
         return f">={found[1]}"
     else:
         print(f"Well, this is an unexpected version\nVersion = {version}\n")
