@@ -18,6 +18,12 @@ The script can be run as a tool using [`uvx`](https://docs.astral.sh/uv/guides/t
 
     uvx --from git+https://github.com/bartdorlandt/convert_poetry2uv convert-poetry2uv --help
 
+
+## Pypi
+The script is also available on pypi as [convert-poetry2uv](https://pypi.org/project/convert-poetry2uv/)
+
+    pip install convert-poetry2uv
+
 # Contribute
 Though I've tried to make it as complete as possible, it is not guaranteed to work for all cases. Feel free to contribute to the code or create an issue with the toml file that is not converted correctly.
 
