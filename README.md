@@ -27,4 +27,6 @@ Though I've tried to make it as complete as possible, it is not guaranteed to wo
 * [Poetry pyproject.toml](https://python-poetry.org/docs/pyproject/)
 * [Real python blog: Python and toml](https://realpython.com/python-toml/#write-toml-documents-with-tomli_w)
 * [tomlkit docs](https://tomlkit.readthedocs.io/en/latest/quickstart/#)
+* [Taskfile installation](https://taskfile.dev/installation/)
+* [uv installation](https://docs.astral.sh/uv/getting-started/installation/)
 
