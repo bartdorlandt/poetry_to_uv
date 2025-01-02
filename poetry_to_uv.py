@@ -89,15 +89,6 @@ def group_dependencies(new_toml: tk.TOMLDocument, org_toml: tk.TOMLDocument) -> 
     if not (groups := org_toml["tool"]["poetry"].get("group")):
         return
     for group, data in groups.items():
-        if (
-            org_toml["tool"]["poetry"]
-            .get("group", {})
-            .get(group, {})
-            .get("optional", "")
-        ):
-            print(
-                f"The optional flag is ignored. You'll have to take care of this! group: {group}"
-            )
         uv_deps, uv_deps_optional, uv_deps_source = parse_packages(
             data.get("dependencies", {})
         )
@@ -266,10 +257,6 @@ def main() -> None:
         project_file.rename(backup_file)
 
     output_file.write_text(tk.dumps(new_toml))
-
-    print(
-        "* Information on pyproject.toml: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/"
-    )
 
 
 if __name__ == "__main__":
