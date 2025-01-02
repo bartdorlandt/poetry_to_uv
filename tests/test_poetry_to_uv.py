@@ -1,3 +1,6 @@
+import shutil
+from pathlib import Path
+
 import pytest
 import tomlkit
 
@@ -309,3 +312,56 @@ def test_empty_group_dependencies(org_toml, pyproject_empty_base):
     del org_toml["tool"]["poetry"]["group"]
     poetry_to_uv.group_dependencies(pyproject_empty_base, org_toml)
     assert pyproject_empty_base == {"project": {}}
+
+
+def test_argparser(mocker):
+    mocker.patch(
+        "sys.argv",
+        ["poetry_to_uv.py", "tests/files/poetry_pyproject.toml", "-n"],
+    )
+    sys_argv = poetry_to_uv.argparser()
+    assert sys_argv.filename == "tests/files/poetry_pyproject.toml"
+    assert sys_argv.n is True
+
+
+def test_plugins(pyproject_empty_base):
+    in_txt = """
+    [tool.poetry.plugins."spam.magical"]
+    tomatoes = "spam:main_tomatoes"
+    """
+    exp_txt = """
+    [project.entry-points."spam.magical"]
+    tomatoes = "spam:main_tomatoes"
+    """
+    in_dict = tomlkit.loads(in_txt)
+    expected = tomlkit.loads(exp_txt)
+    poetry_to_uv.poetry_plugins(pyproject_empty_base, in_dict)
+    assert pyproject_empty_base == expected
+
+
+def test_main_dry_run(mocker, tmp_path):
+    src = "tests/files/poetry_pyproject.toml"
+    filename = tmp_path.joinpath("pyproject.toml")
+    shutil.copy(src, filename)
+    mocker.patch(
+        "sys.argv",
+        ["poetry_to_uv.py", str(filename), "-n"],
+    )
+    poetry_to_uv.main()
+    should_match = Path("tests/files/uv_pyproject.toml").read_text()
+    generated_toml_txt = filename.parent.joinpath("pyproject_temp_uv.toml").read_text()
+    assert generated_toml_txt == should_match
+
+
+def test_main(mocker, tmp_path):
+    src = "tests/files/poetry_pyproject.toml"
+    filename = tmp_path.joinpath("pyproject.toml")
+    shutil.copy(src, filename)
+    mocker.patch(
+        "sys.argv",
+        ["poetry_to_uv.py", str(filename)],
+    )
+    poetry_to_uv.main()
+    should_match = Path("tests/files/uv_pyproject.toml").read_text()
+    generated_toml_txt = filename.read_text()
+    assert generated_toml_txt == should_match

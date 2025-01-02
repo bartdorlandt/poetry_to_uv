@@ -1,14 +1,15 @@
 # poetry_to_uv
 
-The poetry_to_uv.py script is meant to easily set the base for the pyproject.toml to be consumed by `uv` instead of `poetry`.
+The poetry_to_uv.py script is meant to easily convert the pyproject.toml to be consumed by `uv` instead of `poetry`.
 
 It has a dry-run flag, to have a temporary file to validate the output. When not running the dry-run the original file is saved with a .org extension.
 
     uv run poetry_to_uv.py <path to file> [-n]
 
-You may need to make some manual changes. Certain layout things are best done with [Even better toml](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml) in VSCode. Just open the newly generated toml file and save. It will format the file according to the toml specification.
+You may need to make some manual changes.
+The layout might not be exactly to your liking. I would recommend using [Even better toml](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml) in VSCode. Just open the newly generated toml file and save. It will format the file according to the toml specification.
 
-## Notes
+## Caveats
 * If you were using the poetry build-system, it will be replaced by hatchling.
 * if you had optional dev groups, the dev group libraries will be used, the optional flag is removed
 
@@ -22,7 +23,7 @@ Though I've tried to make it as complete as possible, it is not guaranteed to wo
 
 # Links
 * [Writing pyproject.toml](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/)
-* [UV pyproject.toml](https://docs.astral.sh/uv/concepts/projects/layout/)
+* [uv pyproject.toml](https://docs.astral.sh/uv/concepts/projects/layout/)
 * [Poetry pyproject.toml](https://python-poetry.org/docs/pyproject/)
 * [Real python blog: Python and toml](https://realpython.com/python-toml/#write-toml-documents-with-tomli_w)
 * [tomlkit docs](https://tomlkit.readthedocs.io/en/latest/quickstart/#)

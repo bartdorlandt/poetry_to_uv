@@ -1,0 +1,105 @@
+[project]
+name = "name of the project"
+version = "0.1.0"
+description = "A description"
+authors = [
+    {name = "another", email = "email@domain.nl"},
+    {email = "some@email.nl"},
+    {name = "user"},
+]
+maintainers = [
+    {name = "another", email = "email@domain.nl"},
+    {email = "some@email.nl"},
+    {name = "user"},
+]
+license = {text = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.12"
+keywords = ["packaging", "poetry"]
+classifiers = [
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "ruff",
+    "jira>=3.8.0",
+]
+
+[project.urls]
+"Bug Tracker" = "https://github.com/python-poetry/poetry/issues"
+
+
+[project.scripts]
+script_name = "dir.file:app"
+
+
+
+[dependency-groups]
+dev = ["mypy"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+exclude = ["tests"]
+
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:The _yaml extension module is now located at yaml._yaml:DeprecationWarning",
+]
+# addopts = "--cov=. --cov-report=xml --cov-report=term --junitxml=pytest_report.xml"
+
+
+[tool.coverage.run]
+branch = true
+omit = ["tests/*", "main.py", "noxfile.py"]
+source = ["."]
+
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+    ".git",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "noxfile.py",
+    "tests",
+]
+
+[tool.ruff.lint]
+extend-ignore = ["D203", "D213", "PLR2004"]
+extend-select = [
+    # pycodestyle errors and warnings
+    "E",
+    "W",
+    # mccabe
+    "C90",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # pylint
+    "PL",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
