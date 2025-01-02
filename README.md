@@ -1,10 +1,10 @@
-# poetry_to_uv
+# convert-poetry2uv
 
-The poetry_to_uv.py script is meant to easily convert the pyproject.toml to be consumed by `uv` instead of `poetry`.
+The convert_poetry2uv.py script is meant to easily convert the pyproject.toml to be consumed by `uv` instead of `poetry`.
 
 It has a dry-run flag, to have a temporary file to validate the output. When not running the dry-run the original file is saved with a .org extension.
 
-    uv run poetry_to_uv.py <path to file> [-n]
+    uv run convert_poetry2uv.py <path to file> [-n]
 
 You may need to make some manual changes.
 The layout might not be exactly to your liking. I would recommend using [Even better toml](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml) in VSCode. Just open the newly generated toml file and save. It will format the file according to the toml specification.
@@ -16,7 +16,7 @@ The layout might not be exactly to your liking. I would recommend using [Even be
 # Using as a tool
 The script can be run as a tool using [`uvx`](https://docs.astral.sh/uv/guides/tools/)
 
-    uvx --from git+https://github.com/bartdorlandt/poetry_to_uv poetry-to-uv --help
+    uvx --from git+https://github.com/bartdorlandt/convert_poetry2uv convert-poetry2uv --help
 
 # Contribute
 Though I've tried to make it as complete as possible, it is not guaranteed to work for all cases. Feel free to contribute to the code or create an issue with the toml file that is not converted correctly.

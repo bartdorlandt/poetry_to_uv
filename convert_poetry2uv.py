@@ -8,7 +8,7 @@ import tomlkit as tk
 
 def argparser() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="poetry_to_uv",
+        prog="convert_poetry2uv",
         description="Poetry to Uv pyproject conversion",
         epilog="It will move the original pyproject.toml to pyproject.toml.org",
     )
@@ -231,6 +231,9 @@ def poetry_section_specific(
 def main() -> None:
     args = argparser()
     project_file = Path(args.filename)
+    if not project_file.exists():
+        print(f"File {project_file} not found")
+        return
     org_toml = tk.loads(project_file.read_text())
     if not org_toml.get("tool", {}).get("poetry"):
         print("Poetry section not found, are you certain this is a poetry project?")

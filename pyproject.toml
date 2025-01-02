@@ -1,25 +1,19 @@
 [project]
-name = "poetry-to-uv"
-version = "0.1.0"
+name = "convert-poetry2uv"
+version = "0.1.3"
 description = "Poetry to uv tool. To migrate from a poetry managed repo to uv."
 authors = [{ "name" = "Bart", "email" = "bart@bamweb.nl" }]
 readme = "README.md"
 requires-python = ">=3.12"
 
-dependencies = [
-    "tomlkit>=0.13.2",
-]
+dependencies = ["tomlkit>=0.13.2"]
 
 [dependency-groups]
-dev = [
-    "pytest>=8.3.4",
-    "pytest-cov>=6.0.0",
-    "pytest-mock>=3.14.0",
-]
+dev = ["pytest>=8.3.4", "pytest-cov>=6.0.0", "pytest-mock>=3.14.0"]
 
 [project.scripts]
-poetry-to-uv = "poetry_to_uv:main"
+convert-poetry2uv = "convert_poetry2uv:main"
+convert_poetry2uv = "convert_poetry2uv:main"
 
 [tool.uv]
 package = true
-
