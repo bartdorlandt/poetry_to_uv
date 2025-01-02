@@ -1,4 +1,4 @@
-name: Publish poetry-to-uv to TestPyPI
+name: Publish to TestPyPI
 
 on: push
 

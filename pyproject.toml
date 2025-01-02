@@ -1,5 +1,5 @@
 [project]
-name = "poetry-to-uv"
+name = "convert-poetry2uv"
 version = "0.1.1"
 description = "Poetry to uv tool. To migrate from a poetry managed repo to uv."
 authors = [{ "name" = "Bart", "email" = "bart@bamweb.nl" }]
@@ -13,6 +13,7 @@ dev = ["pytest>=8.3.4", "pytest-cov>=6.0.0", "pytest-mock>=3.14.0"]
 
 [project.scripts]
 poetry-to-uv = "poetry_to_uv:main"
+convert-poetry2uv = "poetry_to_uv:main"
 
 [tool.uv]
 package = true
